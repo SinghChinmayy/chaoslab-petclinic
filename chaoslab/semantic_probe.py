@@ -7,6 +7,7 @@ from urllib.request import urlopen
 
 OWNER_ID = 6
 OWNER_URL = f"http://localhost:8080/api/gateway/owners/{OWNER_ID}"
+MIN_ACTION_REQUESTS = 3   # fewer finished requests cannot confirm or contradict a prediction
 
 
 def visit_ids(owner: dict) -> set[int]:
@@ -45,7 +46,12 @@ def baseline(url: str = OWNER_URL) -> dict:
 
 def compare(prediction: dict | None, observations: list[dict],
             action_observations: dict | None = None) -> dict:
-    """Compare only observable effects; lack of samples remains unobserved."""
+    """Compare only observable effects; lack of samples remains unobserved.
+
+    `action_observations` should cover the whole disturbance (injection until
+    users get normal service back): requests that hang during a fault often
+    finish, and fail, only after it has been undone.
+    """
     if prediction is None:
         return {}
     action_observations = action_observations or {}
@@ -63,7 +69,7 @@ def compare(prediction: dict | None, observations: list[dict],
             values = {item["correctness"] for item in fault_probes}
             observed = ("unavailable" if "unavailable" in values else
                         "degraded" if "degraded" in values else "preserved")
-        elif action_observations.get(name, {}).get("request_count", 0) > 0:
+        elif action_observations.get(name, {}).get("request_count", 0) >= MIN_ACTION_REQUESTS:
             rate = action_observations[name]["error_rate"]
             observed = "unavailable" if rate > 0.1 else "preserved"
         comparisons[name] = {"predicted": expected, "observed": observed,
@@ -80,6 +86,7 @@ def compare(prediction: dict | None, observations: list[dict],
                                                "path": impact.get("path", []), "rule": impact.get("rule")}
                                               for impact in impacts],
                              "fault_requests": action_observations.get(name, {}).get("request_count", 0),
+                             "fault_failures": action_observations.get(name, {}).get("failure_count", 0),
                              "fault_probes": len(fault_probes) if name == "owner details" else 0,
                              "match": ("unobserved" if observed == "unobserved" or expected == "uncertain"
                                        else "matched" if expected == observed else "contradicted")}

@@ -12,7 +12,7 @@ from queue import Empty, SimpleQueue
 
 from . import blast_radius, depmap, semantic_probe
 from .faults import Fault
-from .metrics import LocustProbe, Sample, error_rates
+from .metrics import LocustProbe, Sample, Snapshot, error_rates
 from .safety import (Guardrails, SafetyError, active_faults, arm_dead_mans_switch,
                      preflight, register, unregister)
 from .settings import ROOT, RUNS_DIR
@@ -56,7 +56,7 @@ def _raise_interrupt(signum, frame):
 
 
 def _action_observations(before, after) -> dict:
-    """Per-action requests completed while the fault was active."""
+    """Per-action requests completed between two snapshots."""
     observed = {}
     for name, (requests, failures) in after.counts.items():
         prior_requests, prior_failures = before.counts.get(name, (0, 0))
@@ -77,6 +77,7 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
     log = EventLog(run_dir / "events.jsonl")
     probe = LocustProbe()
     timeline: list[Sample] = []
+    snapshots: list[tuple[float, Snapshot]] = []   # (elapsed, counters) for every tick
     semantic_observations: list[dict] = []
     expected_visit_ids: set[int] | None = None
     semantic_results: SimpleQueue[dict] = SimpleQueue()
@@ -94,6 +95,7 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         nonlocal semantic_thread, semantic_phase, latest_correctness
         time.sleep(TICK_S)
         sample = probe.sample(log.elapsed(), phase)
+        snapshots.append((sample.elapsed, probe.history[-1]))
         if expected_visit_ids is not None:
             if semantic_phase != phase:
                 latest_correctness = None
@@ -124,7 +126,7 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         result["semantic_observations"] = semantic_observations
         result["prediction_comparison"] = semantic_probe.compare(
             prediction, semantic_observations,
-            result.get("fault_action_observations"))
+            result.get("disturbance_action_observations") or result.get("fault_action_observations"))
         (run_dir / "result.json").write_text(json.dumps(result, indent=2))
         if prediction is not None:
             depmap.update_run_report(result)
@@ -259,6 +261,11 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
     # 5. Summarise. Impact covers fault + recovery: requests that hung during
     #    the fault often only fail after it has been undone.
     snap_end = probe.history[-1] if outcome != "interrupted" else snap_revert
+    # Predictions are checked over the disturbance only: from injection until
+    # users got normal service back, so later healthy traffic does not dilute it.
+    disturbance_end = next((snap for elapsed, snap in snapshots
+                            if recovered_at is not None and elapsed >= recovered_at), snap_end)
+    disturbance_action_observations = _action_observations(snap_inject, disturbance_end)
     fault_err, fault_actions = error_rates(snap_inject, snap_end)
     paths = depmap.action_services()  # None until `chaoslab map` has been run
     impact = {
@@ -287,6 +294,7 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         "semantic_recovery": next((observation for observation in reversed(semantic_observations)
                                    if observation["phase"] == "recovery"), None),
         "fault_action_observations": fault_action_observations,
+        "disturbance_action_observations": disturbance_action_observations,
         "impact_by_action": impact,
         "collateral_actions": collateral,
     })

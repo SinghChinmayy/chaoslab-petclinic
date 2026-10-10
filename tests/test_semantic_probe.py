@@ -49,6 +49,25 @@ class SemanticProbeTest(unittest.TestCase):
         self.assertEqual(result["add visit"]["observed"], "unobserved")
         self.assertEqual(result["add visit"]["fault_requests"], 0)
 
+    def test_hung_requests_that_fail_after_the_undo_still_count(self):
+        prediction = {"runtime": [{"component": "list owners", "outcome": "unavailable"}]}
+        inject = Snapshot(1, {"list owners": (100, 0)}, None, 10)
+        revert = Snapshot(2, {"list owners": (103, 0)}, None, 10)      # the rest are still hanging
+        recovered = Snapshot(3, {"list owners": (125, 7)}, None, 10)   # ...and fail after the undo
+        fault_only = semantic_probe.compare(prediction, [], _action_observations(inject, revert))
+        disturbance = semantic_probe.compare(prediction, [], _action_observations(inject, recovered))
+        self.assertEqual(fault_only["list owners"]["match"], "contradicted")  # the old, false verdict
+        self.assertEqual(disturbance["list owners"]["match"], "matched")
+        self.assertEqual(disturbance["list owners"]["fault_failures"], 7)
+
+    def test_too_few_finished_requests_stay_unobserved(self):
+        prediction = {"runtime": [{"component": "pet types", "outcome": "unavailable"}]}
+        before = Snapshot(1, {"pet types": (10, 0)}, None, 10)
+        after = Snapshot(2, {"pet types": (12, 0)}, None, 10)
+        result = semantic_probe.compare(prediction, [], _action_observations(before, after))
+        self.assertEqual(result["pet types"]["observed"], "unobserved")
+        self.assertEqual(result["pet types"]["match"], "unobserved")
+
     def test_multiple_prediction_paths_remain_visible(self):
         prediction = {"runtime": [
             {"component": "owner details", "outcome": "degraded", "path": ["a"], "rule": "a"},

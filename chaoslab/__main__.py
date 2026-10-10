@@ -54,6 +54,12 @@ def print_summary(r: dict) -> None:
         print(f"  {name + tag:<28} {_pct(i['baseline_error_rate']):>8}  {_pct(i['fault_error_rate']):>12}")
     print("Collateral damage  " + (", ".join(r["collateral_actions"]) or "none")
           + "  (actions that do not use the target but still failed)")
+    comparison = r.get("prediction_comparison") or {}
+    if comparison:
+        print("\nPrediction vs observation (from injection until users recovered)")
+        for name, c in comparison.items():
+            print(f"  {name:<28} predicted {c['predicted']:<11} observed {c['observed']:<11} "
+                  f"{c['match']} ({c['fault_requests']} requests, {c.get('fault_failures', 0)} failed)")
 
 
 def main(argv: list[str] | None = None) -> int:
