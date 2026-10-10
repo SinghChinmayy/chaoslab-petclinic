@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 790" role="img" aria-labelledby="title description">
+  <title id="title">ChaosLab architecture</title>
+  <desc id="description">Four stage architecture: discover dependencies, run a guarded experiment, exercise the local PetClinic request path, then observe, revert, and explain the outcome.</desc>
+  <defs>
+    <linearGradient id="header" x2="1" y2="1">
+      <stop offset="0" stop-color="#102d3d"/>
+      <stop offset="1" stop-color="#13615f"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M1 1 9 5 1 9" fill="none" stroke="#267981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="orange-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M1 1 9 5 1 9" fill="none" stroke="#c47b2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      text { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+      .card { fill: #fff; stroke: #d5e3e6; stroke-width: 1.5; }
+      .heading { fill: #18343f; font-size: 25px; font-weight: 700; }
+      .body { fill: #536a72; font-size: 17px; }
+      .label { fill: #254750; font-size: 17px; font-weight: 650; }
+      .small { fill: #45616a; font-size: 15px; }
+      .number { fill: #fff; font-size: 17px; font-weight: 800; text-anchor: middle; }
+      .flow { fill: none; stroke: #267981; stroke-width: 3; marker-end: url(#arrow); }
+      .fault { fill: none; stroke: #c47b2b; stroke-width: 2.5; stroke-dasharray: 7 6; marker-end: url(#orange-arrow); }
+    </style>
+  </defs>
+
+  <rect width="1100" height="790" rx="24" fill="#f3f8f9"/>
+  <path d="M24 0H1076Q1100 0 1100 24V114H0V24Q0 0 24 0Z" fill="url(#header)"/>
+  <text x="38" y="55" fill="#ffffff" font-size="35" font-weight="800">ChaosLab architecture</text>
+  <text x="39" y="85" fill="#c6e8e5" font-size="18">Discover the path · inject one bounded fault · measure what users receive</text>
+  <rect x="844" y="38" width="216" height="37" rx="18" fill="#ffffff22" stroke="#ffffff55"/>
+  <text x="952" y="62" fill="#e8f7f5" font-size="14" font-weight="700" text-anchor="middle">LOCAL SANDBOX</text>
+
+  <!-- Discover -->
+  <rect class="card" x="36" y="139" width="490" height="271" rx="18"/>
+  <rect x="36" y="139" width="490" height="6" rx="3" fill="#208e88"/>
+  <circle cx="72" cy="184" r="21" fill="#168078"/>
+  <text class="number" x="72" y="190">01</text>
+  <text class="heading" x="106" y="192">Discover &amp; predict</text>
+  <text class="body" x="61" y="226">Combine source rules with runtime observations.</text>
+  <rect x="61" y="247" width="440" height="47" rx="10" fill="#eaf4f5"/>
+  <text class="small" x="281" y="266" text-anchor="middle">Docker Compose · Docker · Eureka</text>
+  <text class="small" x="281" y="285" text-anchor="middle">Prometheus · Zipkin · Locust</text>
+  <path class="flow" d="M281 296V317"/>
+  <rect x="61" y="324" width="178" height="57" rx="10" fill="#dff4ee" stroke="#8bcbbd"/>
+  <text class="label" x="150" y="358" text-anchor="middle">Dependency mapper</text>
+  <path class="flow" d="M242 352H267"/>
+  <rect x="274" y="324" width="227" height="57" rx="10" fill="#f0eafa" stroke="#c8b5e1"/>
+  <text class="label" x="387" y="348" text-anchor="middle">Versioned map</text>
+  <text class="small" x="387" y="369" text-anchor="middle">+ impact prediction</text>
+
+  <!-- Experiment -->
+  <rect class="card" x="574" y="139" width="490" height="271" rx="18"/>
+  <rect x="574" y="139" width="490" height="6" rx="3" fill="#c47b2b"/>
+  <circle cx="610" cy="184" r="21" fill="#bd772a"/>
+  <text class="number" x="610" y="190">02</text>
+  <text class="heading" x="644" y="192">Guarded experiment</text>
+  <text class="body" x="599" y="226">The CLI operator chooses one local fault.</text>
+  <rect x="599" y="250" width="116" height="67" rx="10" fill="#eaf4f5" stroke="#a8c9cd"/>
+  <text class="label" x="657" y="276" text-anchor="middle">Operator</text>
+  <text class="small" x="657" y="297" text-anchor="middle">CLI</text>
+  <path class="flow" d="M718 283H738"/>
+  <rect x="745" y="250" width="137" height="67" rx="10" fill="#dff4ee" stroke="#8bcbbd"/>
+  <text class="label" x="813" y="276" text-anchor="middle">ChaosLab</text>
+  <text class="small" x="813" y="297" text-anchor="middle">controller</text>
+  <path class="fault" d="M885 283H905"/>
+  <rect x="912" y="250" width="127" height="67" rx="10" fill="#fff0d9" stroke="#e7bd7e"/>
+  <text class="label" x="976" y="276" text-anchor="middle">Allowlisted</text>
+  <text class="small" x="976" y="297" text-anchor="middle">injector</text>
+  <rect x="599" y="340" width="440" height="48" rx="10" fill="#fff8eb" stroke="#f0d9af"/>
+  <text x="819" y="360" fill="#845921" font-size="15" font-weight="700" text-anchor="middle">Healthy baseline · canary visit · time limit</text>
+  <text x="819" y="379" fill="#845921" font-size="15" text-anchor="middle">Watchdog · kill switch · dead-man's switch</text>
+
+  <!-- Cross-card connections -->
+  <path class="flow" d="M528 273H565"/>
+  <path class="fault" d="M975 411V431H282V447"/>
+  <rect x="446" y="417" width="207" height="25" rx="12" fill="#f3f8f9"/>
+  <text x="550" y="435" fill="#9d6425" font-size="15" font-weight="700" text-anchor="middle">one bounded fault</text>
+
+  <!-- Sandbox -->
+  <rect class="card" x="36" y="451" width="490" height="278" rx="18"/>
+  <rect x="36" y="451" width="490" height="6" rx="3" fill="#7879b8"/>
+  <circle cx="72" cy="496" r="21" fill="#7373af"/>
+  <text class="number" x="72" y="502">03</text>
+  <text class="heading" x="106" y="504">Local PetClinic path</text>
+  <text class="body" x="61" y="538">Simulated users exercise real service routes.</text>
+  <rect x="61" y="566" width="108" height="62" rx="10" fill="#eaf4f5" stroke="#a8c9cd"/>
+  <text class="label" x="115" y="592" text-anchor="middle">Locust</text>
+  <text class="small" x="115" y="613" text-anchor="middle">users</text>
+  <path class="flow" d="M172 597H191"/>
+  <rect x="198" y="566" width="126" height="62" rx="10" fill="#ecebfa" stroke="#b4b2df"/>
+  <text class="label" x="261" y="592" text-anchor="middle">API Gateway</text>
+  <text class="small" x="261" y="613" text-anchor="middle">owner details</text>
+  <path class="flow" d="M327 597H346"/>
+  <rect x="352" y="553" width="149" height="88" rx="10" fill="#ecebfa" stroke="#b4b2df"/>
+  <text class="label" x="427" y="578" text-anchor="middle">Customers</text>
+  <text class="label" x="427" y="601" text-anchor="middle">Visits</text>
+  <text class="small" x="427" y="624" text-anchor="middle">Vets on other routes</text>
+  <rect x="61" y="661" width="440" height="45" rx="10" fill="#f4f0fb"/>
+  <text x="281" y="688" fill="#5f5084" font-size="16" font-weight="650" text-anchor="middle">HTTP 200 can still contain missing visits</text>
+
+  <!-- Outcomes -->
+  <rect class="card" x="574" y="451" width="490" height="278" rx="18"/>
+  <rect x="574" y="451" width="490" height="6" rx="3" fill="#a47ab7"/>
+  <circle cx="610" cy="496" r="21" fill="#9670a9"/>
+  <text class="number" x="610" y="502">04</text>
+  <text class="heading" x="644" y="504">Observe, revert &amp; explain</text>
+  <text class="body" x="599" y="538">Monitor user impact throughout the fault.</text>
+  <rect x="599" y="557" width="130" height="64" rx="10" fill="#eaf4f5" stroke="#a8c9cd"/>
+  <text class="label" x="664" y="582" text-anchor="middle">Metrics</text>
+  <text class="small" x="664" y="603" text-anchor="middle">+ correctness</text>
+  <path class="flow" d="M732 589H750"/>
+  <rect x="757" y="557" width="128" height="64" rx="10" fill="#fff0d9" stroke="#e7bd7e"/>
+  <text class="label" x="821" y="582" text-anchor="middle">Watchdog</text>
+  <text class="small" x="821" y="603" text-anchor="middle">+ time limit</text>
+  <path class="fault" d="M888 589H906"/>
+  <rect x="913" y="557" width="126" height="64" rx="10" fill="#fff0d9" stroke="#e7bd7e"/>
+  <text class="label" x="976" y="582" text-anchor="middle">Automatic</text>
+  <text class="small" x="976" y="603" text-anchor="middle">revert</text>
+  <rect x="599" y="644" width="200" height="61" rx="10" fill="#f0eafa" stroke="#c8b5e1"/>
+  <text class="label" x="699" y="668" text-anchor="middle">Run JSON</text>
+  <text class="small" x="699" y="689" text-anchor="middle">+ audit events</text>
+  <path class="flow" d="M802 675H823"/>
+  <rect x="830" y="644" width="209" height="61" rx="10" fill="#dff4ee" stroke="#8bcbbd"/>
+  <text class="label" x="934" y="668" text-anchor="middle">Read-only</text>
+  <text class="small" x="934" y="689" text-anchor="middle">HTML dashboard</text>
+  <path class="flow" d="M528 589H565"/>
+
+  <text x="550" y="762" fill="#607780" font-size="15" text-anchor="middle">Solid arrows show data flow. Dashed orange arrows show fault injection or automatic reversal.</text>
+</svg>

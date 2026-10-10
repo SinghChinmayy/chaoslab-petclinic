@@ -6,6 +6,7 @@ This file records meaningful, user-facing changes to the project. Detailed imple
 
 ### Added
 
+- Added a visual README architecture tour of dependency discovery, the guarded experiment, the PetClinic request path, and read-only reporting.
 - Published a saved dependency map with a browser walkthrough and screenshots that connect service topology, user routes, failure predictions, and evidence freshness.
 - Added evidence-backed impact rules for freezes, slow and lossy networks and the Gateway's 10 s timeout, plus restart data loss for services with in-memory databases, each labelled measured or inferred and checked against experiment results.
 - Added a read-only resilience dashboard, an honest recorded Visits demo, and recruiter-facing screenshots and guides that expose correctness loss, automatic abort, and unresolved recovery.

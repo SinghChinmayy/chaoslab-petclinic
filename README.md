@@ -18,6 +18,14 @@ ChaosLab is a local chaos engineering prototype for the [Spring PetClinic micros
 
 **Stack:** Python 3.11, Spring Boot microservices, Docker Compose, Locust, Prometheus, Grafana, Zipkin, and a dependency-free static HTML dashboard.
 
+## Architecture at a glance
+
+[![ChaosLab architecture showing dependency discovery, guarded fault injection, the PetClinic request path, and automatic recovery with read-only reports](docs/images/architecture.svg)](docs/images/architecture.svg)
+
+[Open the full-size architecture diagram](docs/images/architecture.svg).
+
+The operator selects a fault today. The controller uses the saved map to predict impact, checks a healthy baseline, and injects one bounded fault into an allowlisted service. Locust signals and an owner-data probe feed the watchdog; the resulting run record and dependency snapshot feed read-only reports. The [architecture guide](docs/architecture.md) details the safety and data contracts. AI planner and analysis agents are planned work.
+
 ## Explore the dependency map
 
 [Open the published dependency map](https://singhchinmayy.github.io/chaoslab-petclinic/) or [view the HTML in this repository](docs/index.html). This is a **saved snapshot generated on 2026-10-11**, not a live health page. Running `python3.11 -m chaoslab map` refreshes both `docs/index.html` and `reports/dependency-map.html` from the same JSON report. The map used Docker Compose, Docker, Eureka, Prometheus, and Locust; Zipkin had no recent traces, so route gaps are labelled as unknown or backed by source code.
