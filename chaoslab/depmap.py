@@ -21,7 +21,7 @@ from urllib.request import Request, urlopen
 from .docker import docker
 from .dependency_model import enrich, validate
 from .settings import (ACTION_ROUTES, COMPOSE_FILE, COMPOSE_PROJECT, EUREKA_URL, LOCUST_URL, MAP_FILE,
-                       MAP_OVERRIDES_FILE, PROMETHEUS_URL, REPORTS_DIR, TARGET_LABEL, ZIPKIN_URL)
+                       MAP_OVERRIDES_FILE, PROMETHEUS_URL, REPORTS_DIR, ROOT, TARGET_LABEL, ZIPKIN_URL)
 
 LOOKBACK_MS = 15 * 60 * 1000   # use the last 15 minutes of traces
 MAX_TRACES = 2000
@@ -473,42 +473,84 @@ def html_page(m: dict, run: dict | None = None) -> str:
                     "recovered": run.get("recovered"), "recovery_pending": run.get("recovery_pending", False),
                     "comparison": run.get("prediction_comparison", {})}
     run_json = json.dumps(run_view).replace("<", "\\u003c").replace(">", "\\u003e")
-    options = "".join(f'<option value="{html.escape(name)}">{html.escape(name)}</option>'
+    options = "".join(f'<option value="{html.escape(name)}"{" selected" if name == "visits-service" else ""}>{html.escape(name)}</option>'
                       for name in candidates)
-    failure_options = "".join(f'<option value="{name}">{name}</option>' for name in FAILURE_MODES)
+    failure_options = "".join(f'<option value="{name}"{" selected" if name == "kill" else ""}>{name}</option>'
+                              for name in FAILURE_MODES)
+    active_count = sum(bool(n.get("active")) for n in m["nodes"] if n.get("kind") == "container")
+    action_count = len(actions)
+    edge_count = len(m["edges"])
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dependency map</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%23145c63'/%3E%3Ctext x='20' y='27' text-anchor='middle' font-size='24' fill='white'%3EC%3C/text%3E%3C/svg%3E">
+<title>ChaosLab | Dependency map</title>
 <style>
-  body {{ font-family: -apple-system, system-ui, sans-serif; margin: 24px; color: #1f1f1f; background: #fff; }}
-  .wrap {{ overflow-x: auto; margin: 8px 0 24px; }}
-  table {{ border-collapse: collapse; font-size: 13px; }}
-  th, td {{ border: 1px solid #ddd; padding: 6px 10px; text-align: left; vertical-align: top; }}
-  th {{ background: #f5f5f3; }}
-  .meta {{ color: #555; max-width: 900px; }}
-  #impact li {{ margin: 8px 0; }}
+  :root {{ color-scheme: light; --ink:#192d37; --muted:#52636c; --line:#dbe5e8; --teal:#0b7775; --surface:#fff; }}
+  * {{ box-sizing:border-box; }}
+  html {{ scroll-behavior:smooth; }}
+  body {{ font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; color:var(--ink); background:#f3f7f7; }}
+  a {{ color:#075e68; }}
+  .hero {{ background:linear-gradient(125deg,#132e3c,#145c63); color:#fff; padding:44px max(24px,calc((100vw - 1160px)/2)); }}
+  .eyebrow {{ margin:0 0 7px; color:#a8e4db; text-transform:uppercase; letter-spacing:.15em; font-size:12px; font-weight:700; }}
+  h1 {{ margin:0; font-size:clamp(32px,4vw,50px); letter-spacing:-.04em; line-height:1.1; }}
+  .hero p {{ max-width:850px; color:#e0eeee; }}
+  .hero .stamp {{ font-size:13px; color:#c4ddd9; }}
+  .metrics {{ display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }}
+  .metric {{ background:#ffffff19; border:1px solid #ffffff35; border-radius:10px; padding:10px 16px; min-width:160px; }}
+  .metric strong {{ display:block; font-size:23px; line-height:1.15; color:#fff; }}
+  .metric span {{ color:#cce8e6; font-size:12px; }}
+  nav {{ background:#fff; border-bottom:1px solid var(--line); padding:12px max(24px,calc((100vw - 1160px)/2)); display:flex; flex-wrap:wrap; gap:8px 20px; }}
+  nav a {{ font-size:13px; font-weight:650; text-decoration:none; }}
+  main {{ max-width:1208px; padding:28px 24px 64px; margin:auto; }}
+  section {{ background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:0 6px 20px #193a4910; margin:0 0 20px; padding:24px; scroll-margin-top:20px; }}
+  h2 {{ margin:0 0 8px; font-size:24px; letter-spacing:-.025em; }}
+  .section-intro {{ margin:0 0 18px; color:var(--muted); max-width:850px; }}
+  .wrap {{ overflow-x:auto; margin:14px 0 0; }}
+  table {{ border-collapse:collapse; width:100%; min-width:660px; font-size:13px; }}
+  th,td {{ border-bottom:1px solid var(--line); padding:10px 12px; text-align:left; vertical-align:top; }}
+  th {{ background:#eaf3f3; color:#28545a; white-space:nowrap; }}
+  tr:nth-child(even) td {{ background:#f9fbfb; }}
+  .mermaid {{ overflow-x:auto; text-align:center; }}
+  .controls {{ display:flex; flex-wrap:wrap; gap:12px; margin:16px 0; }}
+  .controls label {{ display:grid; gap:5px; color:var(--muted); font-size:13px; font-weight:650; }}
+  select {{ min-width:165px; max-width:100%; background:#fff; border:1px solid #a8c4c7; border-radius:8px; padding:8px 10px; color:var(--ink); font:inherit; }}
+  #impact,#run-comparison {{ padding-left:22px; }}
+  #impact li,#run-comparison li {{ margin:10px 0; }}
+  li {{ overflow-wrap:anywhere; }}
+  .evidence-grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }}
+  .evidence-grid > div {{ border:1px solid var(--line); border-radius:10px; padding:16px; min-width:0; }}
+  .evidence-grid h3 {{ margin:0 0 8px; font-size:16px; }}
+  .evidence-grid ul {{ margin:0; padding-left:20px; }}
+  @media(max-width:650px) {{ .hero {{ padding:32px 20px; }} nav {{ padding:12px 20px; }} main {{ padding:18px 12px 40px; }} section {{ padding:18px 14px; }} .metric {{ min-width:130px; flex:1; }} }}
 </style></head><body>
-<h1>Dependency map</h1>
-<p class="meta">Generated {html.escape(m['generated_at'])}. {html.escape(INTRO)}</p>
+<header class="hero"><p class="eyebrow">ChaosLab · service intelligence</p><h1>Dependency map</h1>
+<p>Explore how a local PetClinic request crosses services, what a failure could affect, and which observations support the prediction.</p>
+<p class="stamp">Saved snapshot · generated {html.escape(m['generated_at'])} · this report does not poll live services</p>
+<div class="metrics"><div class="metric"><strong>{active_count}</strong><span>active containers</span></div>
+<div class="metric"><strong>{edge_count}</strong><span>mapped dependencies</span></div>
+<div class="metric"><strong>{action_count}</strong><span>user actions</span></div></div></header>
+<nav aria-label="Report sections"><a href="#topology">Topology</a><a href="#services">Services</a><a href="#actions">User actions</a><a href="#impact-section">Blast radius</a><a href="#evidence">Evidence</a></nav>
+<main><section id="topology"><h2>Service topology</h2><p class="section-intro">{html.escape(INTRO)}</p>
 <pre class="mermaid">{html.escape(mermaid(m))}</pre>
-<h2>Services</h2>{table(SERVICE_COLUMNS, services)}
-<h2>User actions (data flows)</h2>{table(ACTION_COLUMNS, actions)}
-<h2>Dependency semantics</h2>{table(DEPENDENCY_COLUMNS, _dependency_rows(m))}
-<h2>Potential blast radius</h2>
-<p>Predictions are qualitative. Select a target, failure, and phase; evidence and uncertainty are shown for each impact.</p>
-<label>Target <select id="target">{options}</select></label>
+</section>
+<section id="services"><h2>Services</h2><p class="section-intro">Traffic share and restart hints help identify high-impact targets.</p>{table(SERVICE_COLUMNS, services)}</section>
+<section id="actions"><h2>User actions and data flows</h2><p class="section-intro">Connect each user-visible route to the services it needs.</p>{table(ACTION_COLUMNS, actions)}</section>
+<section id="semantics"><h2>Dependency semantics</h2><p class="section-intro">Runtime calls, fallbacks, and startup requirements have different failure effects.</p>{table(DEPENDENCY_COLUMNS, _dependency_rows(m))}</section>
+<section id="impact-section"><h2>Potential blast radius</h2>
+<p class="section-intro">Qualitative predictions for a selected target, failure, and phase. Each impact includes its evidence and uncertainty.</p>
+<div class="controls"><label>Target <select id="target">{options}</select></label>
 <label>Failure <select id="failure">{failure_options}</select></label>
 <label>Phase <select id="phase"><option value="runtime">Running services</option>
-<option value="startup_restart">Startup and restart</option></select></label>
-<ul id="impact"></ul>
-<h2>Latest run comparison</h2><p id="run-meta">No run for this snapshot yet.</p>
-<ul id="run-comparison"></ul>
-<h2>Runtime source status</h2><ul>{states}</ul>
-<h2>Notes and manual corrections</h2><ul>{notes}</ul>
-<h2>Sources</h2><ul>{sources}</ul>
+<option value="startup_restart">Startup and restart</option></select></label></div>
+<ul id="impact"></ul><h2>Latest run comparison</h2><p id="run-meta">No run for this snapshot yet.</p>
+<ul id="run-comparison"></ul></section>
+<section id="evidence"><h2>Evidence and freshness</h2><p class="section-intro">Review source status and manual corrections before treating a prediction as current.</p>
+<div class="evidence-grid"><div><h3>Runtime source status</h3><ul>{states}</ul></div>
+<div><h3>Notes and manual corrections</h3><ul>{notes}</ul></div>
+<div><h3>Sources</h3><ul>{sources}</ul></div></div></section></main>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
 <script>
-mermaid.initialize({{ startOnLoad: true, securityLevel: "strict" }});
+if (window.mermaid) mermaid.initialize({{ startOnLoad: true, securityLevel: "strict" }});
 const predictions = {prediction_json};
 const latestRun = {run_json};
 const target = document.getElementById('target');
@@ -560,11 +602,20 @@ def save(m: dict) -> list[str]:
     REPORTS_DIR.mkdir(exist_ok=True)
     MAP_FILE.write_text(json.dumps(m, indent=2))
     (REPORTS_DIR / "dependency-map.md").write_text(markdown(m))
-    (REPORTS_DIR / "dependency-map.html").write_text(html_page(m))
+    _save_html(m)
     dashboard.build(snapshot=m)
     return [str(p.relative_to(REPORTS_DIR.parent)) for p in
             (MAP_FILE, REPORTS_DIR / "dependency-map.md", REPORTS_DIR / "dependency-map.html",
-             dashboard.DASHBOARD_FILE)]
+             ROOT / "docs" / "index.html", dashboard.DASHBOARD_FILE)]
+
+
+def _save_html(m: dict, run: dict | None = None) -> None:
+    """Keep the local report and the GitHub Pages entry page in sync."""
+    page = html_page(m, run)
+    (REPORTS_DIR / "dependency-map.html").write_text(page)
+    docs_page = ROOT / "docs" / "index.html"
+    docs_page.parent.mkdir(exist_ok=True)
+    docs_page.write_text(page)
 
 
 def update_run_report(run: dict) -> bool:
@@ -575,5 +626,5 @@ def update_run_report(run: dict) -> bool:
         return False
     if (run.get("prediction") or {}).get("snapshot_id") != snapshot.get("snapshot_id"):
         return False
-    (REPORTS_DIR / "dependency-map.html").write_text(html_page(snapshot, run))
+    _save_html(snapshot, run)
     return True

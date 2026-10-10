@@ -18,6 +18,26 @@ ChaosLab is a local chaos engineering prototype for the [Spring PetClinic micros
 
 **Stack:** Python 3.11, Spring Boot microservices, Docker Compose, Locust, Prometheus, Grafana, Zipkin, and a dependency-free static HTML dashboard.
 
+## Explore the dependency map
+
+[Open the published dependency map](https://singhchinmayy.github.io/hackathon/) or [view the HTML in this repository](docs/index.html). This is a **saved snapshot generated on 2026-10-11**, not a live health page. Running `python3.11 -m chaoslab map` refreshes both `docs/index.html` and `reports/dependency-map.html` from the same JSON report. The map used Docker Compose, Docker, Eureka, Prometheus, and Locust; Zipkin had no recent traces, so route gaps are labelled as unknown or backed by source code.
+
+![Service topology showing Gateway, Customers, Visits, Vets, platform services, and their dependency arrows](docs/images/dependency-topology.png)
+
+**See the request path.** The graph highlights Gateway as the entry point, business services behind it, and Config and Discovery as startup dependencies. It helps identify which single instance or dependency to examine before injecting a fault.
+
+![User-action table linking owner details and four other routes to the services they pass through](docs/images/dependency-actions.png)
+
+**Translate infrastructure into user impact.** The owner-details route passes through Gateway, Customers, and Visits. Its route is a documented manual correction because the trace context is lost on that path; the source column makes this visible.
+
+![Blast-radius selector predicting a Visits crash will make add-visit unavailable and owner details degraded](docs/images/dependency-blast-radius.png)
+
+**Compare failure scenarios.** Choose a target, fault type, and runtime or restart phase. For a Visits crash, the saved view predicts an unavailable add-visit route and degraded owner details through the Gateway fallback, with evidence and uncertainty shown beside each claim. The recorded experiment and measured outcome remain in the [resilience dashboard](reports/dashboard.html).
+
+![Evidence section showing runtime source timestamps, missing Zipkin traces, manual corrections, and stale-observation labels](docs/images/dependency-evidence.png)
+
+**Check confidence before acting.** Source timestamps, the empty Zipkin result, and manual corrections show where the topology is measured or inferred. Short-lived runtime observations become labelled stale when this saved page is opened later.
+
 ## Two-minute tour
 
 1. Open [the standalone dashboard](reports/dashboard.html). Its header marks the demo date and that it is a saved export.

@@ -1,15 +1,19 @@
 {
-  "generated_at": "2026-10-10 16:42:21",
+  "generated_at": "2026-10-11 03:12:27",
   "entry_point": "api-gateway",
   "load_generator": "load-generator",
   "sources": {
     "docker compose": "11 containers, 7 app services",
     "eureka": "5 services registered",
-    "zipkin": "1924 traces and 6 call edges from the last 15 minutes",
-    "locust": "1334 user requests across 5 actions"
+    "zipkin": "0 traces and 0 call edges from the last 15 minutes",
+    "locust": "404 user requests across 5 actions"
   },
   "warnings": [
-    "'owner details': traces only show api-gateway; added from map-overrides.json: ApiGatewayController calls customers-service and then visits-service with WebClient, but the trace context is lost on this path, so Zipkin only sees the gateway. Verified in ApiGatewayController.java. The active datastore behind each service is not established by this controller."
+    "'owner details': traces only show nothing; added from map-overrides.json: ApiGatewayController calls customers-service and then visits-service with WebClient, but the trace context is lost on this path, so Zipkin only sees the gateway. Verified in ApiGatewayController.java. The active datastore behind each service is not established by this controller.",
+    "'list owners': no recent trace; source-backed route is retained, additional runtime calls may be unknown",
+    "'list vets': no recent trace; source-backed route is retained, additional runtime calls may be unknown",
+    "'pet types': no recent trace; source-backed route is retained, additional runtime calls may be unknown",
+    "'add visit': no recent trace; source-backed route is retained, additional runtime calls may be unknown"
   ],
   "nodes": [
     {
@@ -41,7 +45,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Declared Compose service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -73,11 +77,7 @@
       ],
       "share_of_requests": 1.0,
       "callers": [],
-      "calls": [
-        "customers-service",
-        "vets-service",
-        "visits-service"
-      ],
+      "calls": [],
       "risk_hints": [
         "single instance",
         "no auto-restart",
@@ -91,7 +91,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Declared Compose service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -135,7 +135,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Declared Compose service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -163,17 +163,13 @@
         "owner details",
         "pet types"
       ],
-      "share_of_requests": 0.689,
-      "callers": [
-        "api-gateway"
-      ],
-      "calls": [
-        "customers-db"
-      ],
+      "share_of_requests": 0.711,
+      "callers": [],
+      "calls": [],
       "risk_hints": [
         "single instance",
         "no auto-restart",
-        "on 69% of user requests"
+        "on 71% of user requests"
       ],
       "active": true,
       "component_kind": "service",
@@ -183,7 +179,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Declared Compose service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -228,7 +224,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Declared Compose service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -254,17 +250,13 @@
       "user_actions": [
         "list vets"
       ],
-      "share_of_requests": 0.235,
-      "callers": [
-        "api-gateway"
-      ],
-      "calls": [
-        "vets-db"
-      ],
+      "share_of_requests": 0.215,
+      "callers": [],
+      "calls": [],
       "risk_hints": [
         "single instance",
         "no auto-restart",
-        "on 24% of user requests"
+        "on 22% of user requests"
       ],
       "active": true,
       "component_kind": "service",
@@ -274,7 +266,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Declared Compose service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -301,17 +293,13 @@
         "owner details",
         "add visit"
       ],
-      "share_of_requests": 0.369,
-      "callers": [
-        "api-gateway"
-      ],
-      "calls": [
-        "visits-db"
-      ],
+      "share_of_requests": 0.401,
+      "callers": [],
+      "calls": [],
       "risk_hints": [
         "single instance",
         "no auto-restart",
-        "on 37% of user requests"
+        "on 40% of user requests"
       ],
       "active": true,
       "component_kind": "service",
@@ -321,7 +309,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Declared Compose service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -329,118 +317,6 @@
         "running_instances": 1,
         "registered_instances": 1,
         "health": "up"
-      }
-    },
-    {
-      "id": "visits-db",
-      "role": "datastore",
-      "kind": "embedded in visits-service",
-      "instances": null,
-      "inside": "visits-service",
-      "jdbc_driver": "org.hsqldb.jdbc.JDBCDriver",
-      "user_actions": [
-        "add visit"
-      ],
-      "share_of_requests": 0.076,
-      "callers": [
-        "visits-service"
-      ],
-      "calls": [],
-      "risk_hints": [
-        "embedded: fails and restarts together with visits-service",
-        "on 8% of user requests"
-      ],
-      "active": true,
-      "component_kind": "in_process_resource",
-      "verification": "verified",
-      "evidence": [
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin trace spans (jdbc.datasource.driver tag)",
-          "detail": "JDBC calls from visits-service use org.hsqldb.jdbc.JDBCDriver",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        }
-      ],
-      "operational": {
-        "running_instances": null,
-        "registered_instances": null,
-        "health": "unknown"
-      }
-    },
-    {
-      "id": "customers-db",
-      "role": "datastore",
-      "kind": "embedded in customers-service",
-      "instances": null,
-      "inside": "customers-service",
-      "jdbc_driver": "org.hsqldb.jdbc.JDBCDriver",
-      "user_actions": [
-        "list owners",
-        "pet types"
-      ],
-      "share_of_requests": 0.396,
-      "callers": [
-        "customers-service"
-      ],
-      "calls": [],
-      "risk_hints": [
-        "embedded: fails and restarts together with customers-service",
-        "on 40% of user requests"
-      ],
-      "active": true,
-      "component_kind": "in_process_resource",
-      "verification": "verified",
-      "evidence": [
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin trace spans (jdbc.datasource.driver tag)",
-          "detail": "JDBC calls from customers-service use org.hsqldb.jdbc.JDBCDriver",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        }
-      ],
-      "operational": {
-        "running_instances": null,
-        "registered_instances": null,
-        "health": "unknown"
-      }
-    },
-    {
-      "id": "vets-db",
-      "role": "datastore",
-      "kind": "embedded in vets-service",
-      "instances": null,
-      "inside": "vets-service",
-      "jdbc_driver": "org.hsqldb.jdbc.JDBCDriver",
-      "user_actions": [
-        "list vets"
-      ],
-      "share_of_requests": 0.235,
-      "callers": [
-        "vets-service"
-      ],
-      "calls": [],
-      "risk_hints": [
-        "embedded: fails and restarts together with vets-service",
-        "on 24% of user requests"
-      ],
-      "active": true,
-      "component_kind": "in_process_resource",
-      "verification": "verified",
-      "evidence": [
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin trace spans (jdbc.datasource.driver tag)",
-          "detail": "JDBC calls from vets-service use org.hsqldb.jdbc.JDBCDriver",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        }
-      ],
-      "operational": {
-        "running_instances": null,
-        "registered_instances": null,
-        "health": "unknown"
       }
     },
     {
@@ -471,7 +347,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Declared Compose service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -480,6 +356,105 @@
         "registered_instances": 0,
         "health": "inactive"
       }
+    },
+    {
+      "id": "customers-db",
+      "role": "datastore",
+      "kind": "embedded in customers-service",
+      "component_kind": "in_process_resource",
+      "inside": "customers-service",
+      "instances": null,
+      "registered_in_eureka": null,
+      "auto_restart": false,
+      "active": true,
+      "verification": "inferred",
+      "share_of_requests": 0.0,
+      "risk_hints": [
+        "datasource not verified"
+      ],
+      "user_actions": [],
+      "callers": [],
+      "calls": [],
+      "operational": {
+        "running_instances": null,
+        "registered_instances": null,
+        "health": "unknown"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "locator": "spring-petclinic-microservices/spring-petclinic-customers-service/pom.xml",
+          "detail": "HSQLDB dependency is present; active datasource is unverified",
+          "observed_at": "2026-10-10T21:42:27+00:00",
+          "verification": "inferred"
+        }
+      ]
+    },
+    {
+      "id": "visits-db",
+      "role": "datastore",
+      "kind": "embedded in visits-service",
+      "component_kind": "in_process_resource",
+      "inside": "visits-service",
+      "instances": null,
+      "registered_in_eureka": null,
+      "auto_restart": false,
+      "active": true,
+      "verification": "inferred",
+      "share_of_requests": 0.0,
+      "risk_hints": [
+        "datasource not verified"
+      ],
+      "user_actions": [],
+      "callers": [],
+      "calls": [],
+      "operational": {
+        "running_instances": null,
+        "registered_instances": null,
+        "health": "unknown"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "locator": "spring-petclinic-microservices/spring-petclinic-visits-service/pom.xml",
+          "detail": "HSQLDB dependency is present; active datasource is unverified",
+          "observed_at": "2026-10-10T21:42:27+00:00",
+          "verification": "inferred"
+        }
+      ]
+    },
+    {
+      "id": "vets-db",
+      "role": "datastore",
+      "kind": "embedded in vets-service",
+      "component_kind": "in_process_resource",
+      "inside": "vets-service",
+      "instances": null,
+      "registered_in_eureka": null,
+      "auto_restart": false,
+      "active": true,
+      "verification": "inferred",
+      "share_of_requests": 0.0,
+      "risk_hints": [
+        "datasource not verified"
+      ],
+      "user_actions": [],
+      "callers": [],
+      "calls": [],
+      "operational": {
+        "running_instances": null,
+        "registered_instances": null,
+        "health": "unknown"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "locator": "spring-petclinic-microservices/spring-petclinic-vets-service/pom.xml",
+          "detail": "HSQLDB dependency is present; active datasource is unverified",
+          "observed_at": "2026-10-10T21:42:27+00:00",
+          "verification": "inferred"
+        }
+      ]
     }
   ],
   "edges": [
@@ -493,49 +468,13 @@
       "from": "api-gateway",
       "to": "customers-service",
       "type": "calls",
-      "calls": 705,
-      "errors": 0,
-      "source": "zipkin"
-    },
-    {
-      "from": "api-gateway",
-      "to": "vets-service",
-      "type": "calls",
-      "calls": 418,
-      "errors": 0,
-      "source": "zipkin"
+      "source": "manual correction"
     },
     {
       "from": "api-gateway",
       "to": "visits-service",
       "type": "calls",
-      "calls": 131,
-      "errors": 0,
-      "source": "zipkin"
-    },
-    {
-      "from": "customers-service",
-      "to": "customers-db",
-      "type": "calls",
-      "calls": 14018,
-      "errors": 0,
-      "source": "zipkin"
-    },
-    {
-      "from": "vets-service",
-      "to": "vets-db",
-      "type": "calls",
-      "calls": 5852,
-      "errors": 0,
-      "source": "zipkin"
-    },
-    {
-      "from": "visits-service",
-      "to": "visits-db",
-      "type": "calls",
-      "calls": 1319,
-      "errors": 0,
-      "source": "zipkin"
+      "source": "manual correction"
     },
     {
       "from": "admin-server",
@@ -607,14 +546,10 @@
   "user_actions": {
     "list owners": {
       "route": "/api/customer/owners",
-      "services": [
-        "api-gateway",
-        "customers-db",
-        "customers-service"
-      ],
-      "traces": 576,
-      "source": "traces",
-      "share_of_requests": 0.331,
+      "services": [],
+      "traces": 0,
+      "source": "unknown",
+      "share_of_requests": 0.317,
       "declared_services": [
         "api-gateway",
         "customers-service"
@@ -627,10 +562,10 @@
         "customers-service",
         "visits-service"
       ],
-      "traces": 544,
+      "traces": 0,
       "source": "manual correction",
       "reason": "ApiGatewayController calls customers-service and then visits-service with WebClient, but the trace context is lost on this path, so Zipkin only sees the gateway. Verified in ApiGatewayController.java. The active datastore behind each service is not established by this controller.",
-      "share_of_requests": 0.293,
+      "share_of_requests": 0.327,
       "declared_services": [
         "api-gateway",
         "customers-service",
@@ -639,14 +574,10 @@
     },
     "list vets": {
       "route": "/api/vet/vets",
-      "services": [
-        "api-gateway",
-        "vets-db",
-        "vets-service"
-      ],
-      "traces": 418,
-      "source": "traces",
-      "share_of_requests": 0.235,
+      "services": [],
+      "traces": 0,
+      "source": "unknown",
+      "share_of_requests": 0.215,
       "declared_services": [
         "api-gateway",
         "vets-service"
@@ -654,14 +585,10 @@
     },
     "pet types": {
       "route": "/api/customer/petTypes",
-      "services": [
-        "api-gateway",
-        "customers-db",
-        "customers-service"
-      ],
-      "traces": 129,
-      "source": "traces",
-      "share_of_requests": 0.065,
+      "services": [],
+      "traces": 0,
+      "source": "unknown",
+      "share_of_requests": 0.067,
       "declared_services": [
         "api-gateway",
         "customers-service"
@@ -669,14 +596,10 @@
     },
     "add visit": {
       "route": "/api/visit/owners/\\d+/pets/\\d+/visits",
-      "services": [
-        "api-gateway",
-        "visits-db",
-        "visits-service"
-      ],
-      "traces": 132,
-      "source": "traces",
-      "share_of_requests": 0.076,
+      "services": [],
+      "traces": 0,
+      "source": "unknown",
+      "share_of_requests": 0.074,
       "declared_services": [
         "api-gateway",
         "visits-service"
@@ -690,42 +613,42 @@
     "tracing-server"
   ],
   "schema_version": 1,
-  "generated_at_utc": "2026-10-10T11:12:21+00:00",
+  "generated_at_utc": "2026-10-10T21:42:27+00:00",
   "source_state": {
     "docker compose": {
       "status": "available",
       "detail": "11 containers, 7 app services",
-      "observed_at": "2026-10-10T11:12:20+00:00",
+      "observed_at": "2026-10-10T21:42:27+00:00",
       "ttl_seconds": null
     },
     "docker": {
       "status": "available",
-      "detail": "12 running containers",
-      "observed_at": "2026-10-10T11:12:21+00:00",
+      "detail": "11 running containers",
+      "observed_at": "2026-10-10T21:42:27+00:00",
       "ttl_seconds": 30
     },
     "eureka": {
       "status": "available",
       "detail": "5 services registered",
-      "observed_at": "2026-10-10T11:12:21+00:00",
+      "observed_at": "2026-10-10T21:42:27+00:00",
       "ttl_seconds": 30
     },
     "prometheus": {
       "status": "available",
       "detail": "6 active scrape targets",
-      "observed_at": "2026-10-10T11:12:21+00:00",
+      "observed_at": "2026-10-10T21:42:27+00:00",
       "ttl_seconds": 30
     },
     "zipkin": {
-      "status": "available",
-      "detail": "1924 traces and 6 call edges from the last 15 minutes",
-      "observed_at": "2026-10-10T11:12:21+00:00",
+      "status": "empty",
+      "detail": "0 traces and 0 call edges from the last 15 minutes",
+      "observed_at": "2026-10-10T21:42:27+00:00",
       "ttl_seconds": 900
     },
     "locust": {
       "status": "available",
-      "detail": "1334 user requests across 5 actions",
-      "observed_at": "2026-10-10T11:12:21+00:00",
+      "detail": "404 user requests across 5 actions",
+      "observed_at": "2026-10-10T21:42:27+00:00",
       "ttl_seconds": 30
     }
   },
@@ -781,28 +704,21 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml",
           "detail": "Route or controller establishes this call and its unavailable behavior",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run kill customers-service (2026-10-10)",
           "detail": "Requests hung up to the Gateway's 10 s timeout before failing; list owners matched its unavailable prediction",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run cpu customers-service --cpus 0.1 (2026-10-10)",
           "detail": "p95 89 ms warm and 460 ms cold, no errors",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        },
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin dependency API",
-          "detail": "705 observed calls",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ]
@@ -854,28 +770,21 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/java/org/springframework/samples/petclinic/api/boundary/web/ApiGatewayController.java#getOwnerDetails",
           "detail": "Route or controller establishes this call and its unavailable behavior",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run kill customers-service (2026-10-10)",
           "detail": "Owner details returned HTTP 500 after 7.2 s; p95 reached 19 s in an earlier run",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run cpu customers-service --cpus 0.1 (2026-10-10)",
           "detail": "No errors; p95 up to 460 ms right after a restart",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        },
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin dependency API",
-          "detail": "705 observed calls",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ]
@@ -936,35 +845,28 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/java/org/springframework/samples/petclinic/api/boundary/web/ApiGatewayController.java#emptyVisitsForPets",
           "detail": "Route or controller establishes this call and its unavailable behavior",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run delay visits-service --delay-ms 600 (2026-10-10)",
           "detail": "p95 rose from 23 ms to 1.2 s with no errors",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run loss visits-service --loss-pct 30 (2026-10-10)",
           "detail": "p95 rose to 860 ms with no errors",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run kill visits-service (2026-10-10)",
           "detail": "Owner pages returned HTTP 200 with no visits about 10 s after the crash; owner details matched its degraded prediction",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        },
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin dependency API",
-          "detail": "131 observed calls",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ]
@@ -1017,21 +919,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml",
           "detail": "Route or controller establishes this call and its unavailable behavior",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run pause vets-service (2026-10-10)",
           "detail": "Throughput fell 87% with 0% errors while requests waited on the frozen service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        },
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin dependency API",
-          "detail": "418 observed calls",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ]
@@ -1085,21 +980,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml",
           "detail": "Route or controller establishes this call and its unavailable behavior",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run kill customers-service (2026-10-10)",
           "detail": "Pet types matched its unavailable prediction (3 of 4 requests failed)",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        },
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin dependency API",
-          "detail": "705 observed calls",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ]
@@ -1151,35 +1039,28 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml",
           "detail": "Route or controller establishes this call and its unavailable behavior",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run delay visits-service --delay-ms 600 (2026-10-10)",
           "detail": "Add visit had no errors",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run loss visits-service --loss-pct 30 (2026-10-10)",
           "detail": "Add visit had no errors",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "experiment",
           "locator": "chaoslab run kill visits-service (2026-10-10)",
           "detail": "Add visit matched its unavailable prediction (6 of 9 requests failed)",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        },
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin dependency API",
-          "detail": "131 observed calls",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ]
@@ -1208,7 +1089,7 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml",
           "detail": "Route or controller establishes this call and its unavailable behavior",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ]
@@ -1231,14 +1112,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-discovery-server/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1267,14 +1148,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-discovery-server/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1303,14 +1184,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-customers-service/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1339,14 +1220,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-customers-service/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1375,14 +1256,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-visits-service/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1411,14 +1292,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-visits-service/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1447,14 +1328,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-vets-service/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1483,14 +1364,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-vets-service/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1519,14 +1400,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1555,14 +1436,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1591,14 +1472,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-admin-server/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1627,14 +1508,14 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-admin-server/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         },
         {
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Config Server health",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1663,7 +1544,7 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-genai-service/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1692,7 +1573,7 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-genai-service/src/main/resources/application.yml",
           "detail": "Docker profile imports Config Server",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1721,7 +1602,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery; cached runtime addresses are unverified",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1749,7 +1630,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery health before starting this service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1779,7 +1660,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery; cached runtime addresses are unverified",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1807,7 +1688,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery health before starting this service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1837,7 +1718,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery; cached runtime addresses are unverified",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1865,7 +1746,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery health before starting this service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1895,7 +1776,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery; cached runtime addresses are unverified",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1923,7 +1804,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery health before starting this service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1953,7 +1834,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery; cached runtime addresses are unverified",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -1981,7 +1862,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery health before starting this service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -2011,7 +1892,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery; cached runtime addresses are unverified",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -2039,7 +1920,7 @@
           "kind": "compose",
           "locator": "spring-petclinic-microservices/docker-compose.yml",
           "detail": "Compose waits for Discovery health before starting this service",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ],
@@ -2062,22 +1943,15 @@
         "runtime"
       ],
       "requirement": "unknown",
-      "verification": "verified",
+      "verification": "inferred",
       "effects": {},
       "evidence": [
         {
-          "kind": "zipkin",
-          "locator": "Zipkin trace spans (jdbc.datasource.driver tag)",
-          "detail": "JDBC calls from customers-service use org.hsqldb.jdbc.JDBCDriver",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        },
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin dependency API",
-          "detail": "14018 observed calls",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
+          "kind": "source",
+          "locator": "spring-petclinic-microservices/spring-petclinic-customers-service/pom.xml",
+          "detail": "HSQLDB dependency is present; active datasource is unverified",
+          "observed_at": "2026-10-10T21:42:27+00:00",
+          "verification": "inferred"
         }
       ]
     },
@@ -2092,22 +1966,15 @@
         "runtime"
       ],
       "requirement": "unknown",
-      "verification": "verified",
+      "verification": "inferred",
       "effects": {},
       "evidence": [
         {
-          "kind": "zipkin",
-          "locator": "Zipkin trace spans (jdbc.datasource.driver tag)",
-          "detail": "JDBC calls from visits-service use org.hsqldb.jdbc.JDBCDriver",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        },
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin dependency API",
-          "detail": "1319 observed calls",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
+          "kind": "source",
+          "locator": "spring-petclinic-microservices/spring-petclinic-visits-service/pom.xml",
+          "detail": "HSQLDB dependency is present; active datasource is unverified",
+          "observed_at": "2026-10-10T21:42:27+00:00",
+          "verification": "inferred"
         }
       ]
     },
@@ -2122,22 +1989,15 @@
         "runtime"
       ],
       "requirement": "unknown",
-      "verification": "verified",
+      "verification": "inferred",
       "effects": {},
       "evidence": [
         {
-          "kind": "zipkin",
-          "locator": "Zipkin trace spans (jdbc.datasource.driver tag)",
-          "detail": "JDBC calls from vets-service use org.hsqldb.jdbc.JDBCDriver",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
-        },
-        {
-          "kind": "zipkin",
-          "locator": "Zipkin dependency API",
-          "detail": "5852 observed calls",
-          "observed_at": "2026-10-10T11:12:21+00:00",
-          "verification": "verified"
+          "kind": "source",
+          "locator": "spring-petclinic-microservices/spring-petclinic-vets-service/pom.xml",
+          "detail": "HSQLDB dependency is present; active datasource is unverified",
+          "observed_at": "2026-10-10T21:42:27+00:00",
+          "verification": "inferred"
         }
       ]
     }
@@ -2225,7 +2085,7 @@
           "kind": "experiment",
           "locator": "chaoslab run kill visits-service (2026-10-10)",
           "detail": "379 of 383 owner 6 visits, including the canary, were missing after the restart; the 4 seeded visits remained",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "verified"
         }
       ]
@@ -2245,11 +2105,11 @@
           "kind": "source",
           "locator": "spring-petclinic-microservices/spring-petclinic-customers-service/src/main/resources/db/hsqldb/data.sql",
           "detail": "Seed data is loaded into the embedded database at every start",
-          "observed_at": "2026-10-10T11:12:21+00:00",
+          "observed_at": "2026-10-10T21:42:27+00:00",
           "verification": "inferred"
         }
       ]
     }
   },
-  "snapshot_id": "8f47ea1a7c2ae6f6"
+  "snapshot_id": "a6f0b4353a86e7a4"
 }

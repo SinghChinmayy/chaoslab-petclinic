@@ -93,7 +93,7 @@ See the [container resource monitoring guide](../spring-petclinic-microservices/
 ## Dependency map
 
 ```bash
-python3.11 -m chaoslab map     # writes reports/dependency-map.{json,md,html} and dashboard.html
+python3.11 -m chaoslab map     # writes reports/dependency-map.{json,md,html}, docs/index.html, and dashboard.html
 ```
 
 The versioned JSON map is shared by the CLI, future agents, and the HTML report. It combines source-backed feature rules in [dependency-semantics.json](../dependency-semantics.json) with Docker Compose, Docker, Eureka, Prometheus, Zipkin, and Locust observations. Dependencies record their purpose, runtime or startup phase, evidence, verification status, and known fallback behavior. Missing or stale telemetry stays visible; it does not erase source-backed dependencies. [map-overrides.json](../map-overrides.json) still documents trace gaps. Request share is exposure context, not a dependency weight or failure-severity score.
@@ -104,7 +104,7 @@ python3.11 -m chaoslab impact config-server --failure kill --json   # machine-re
 python3.11 -m chaoslab impact visits-service --phase runtime --feature 'owner details'
 ```
 
-The impact command is read-only. It reports running-service effects separately from startup/restart effects, with dependency paths, fallback assumptions, and uncertainty. Open `reports/dependency-map.html` to inspect the same semantics and switch target, failure, and phase. After a guarded run, the report also shows its prediction-versus-observation comparison when the run used the current snapshot. The [implementation plan](dependency-analysis-plan.md) documents the V1 model, evidence rules, and limits.
+The impact command is read-only. It reports running-service effects separately from startup/restart effects, with dependency paths, fallback assumptions, and uncertainty. Open `reports/dependency-map.html` to inspect the same semantics and switch target, failure, and phase. The identical `docs/index.html` is the [published map](https://singhchinmayy.github.io/hackathon/) after committing and pushing a refresh. After a guarded run, the report also shows its prediction-versus-observation comparison when the run used the current snapshot. The [implementation plan](dependency-analysis-plan.md) documents the V1 model, evidence rules, and limits.
 
 ## Read-only dashboard
 

@@ -2,6 +2,8 @@
 
 The committed [dashboard](../reports/dashboard.html) and [recorded run](../demo/visits-failure.json) work without Docker. They describe a local experiment recorded on **2026-10-10**, before canary visits and explicit data-loss classification were added. The displayed dependency map was generated later, so its snapshot ID differs from the one captured with the run; the dashboard explicitly labels this.
 
+The [published dependency map](https://singhchinmayy.github.io/hackathon/) is a saved **2026-10-11** snapshot. Start there to show the Gateway → Customers → Visits path, the owner-details route, and the Visits crash prediction. Its evidence panel labels missing recent traces and observations that have since become stale. Then move to the dashboard to show what the earlier experiment actually measured.
+
 ## Walkthrough
 
 1. **Show the finding (30 seconds).** Open the dashboard. Point to the `GET /api/gateway/owners/{ownerId}` path: Gateway uses Customers and Visits. The recorded fault probe returned HTTP `200` with six baseline visits missing. Explain why status-only monitoring would miss that result.
@@ -17,8 +19,10 @@ From the repository root:
 python3.11 -m chaoslab dashboard --demo
 ```
 
-Open `reports/dashboard.html`. To use the latest finished local run instead, execute `python3.11 -m chaoslab dashboard`. A fresh clone falls back to the committed recording. The separate [operations guide](operations.md) covers starting Docker, generating a fresh map, and running a guarded experiment.
+Open `reports/dashboard.html`. To use the latest finished local run instead, execute `python3.11 -m chaoslab dashboard`. A fresh clone falls back to the committed recording. The separate [operations guide](operations.md) covers starting Docker, generating a fresh map, and running a guarded experiment. A map refresh also writes identical report pages to `reports/dependency-map.html` and `docs/index.html`; the latter is published through GitHub Pages.
 
 ## Screenshot provenance
 
-The README screenshots were captured from the committed demo export at a desktop viewport. They show **historical run data**, not live services. `dashboard-overview.png` highlights the status-versus-correctness finding; `dashboard-experiment.png` shows the timeline and prediction comparison. The demo JSON is the evidence source for every number in those images.
+The dashboard screenshots were captured from the committed demo export at a desktop viewport. They show **historical run data**, not live services. `dashboard-overview.png` highlights the status-versus-correctness finding; `dashboard-experiment.png` shows the timeline and prediction comparison. The demo JSON is the evidence source for every number in those images.
+
+The four dependency-map screenshots were captured from the saved 2026-10-11 report generated against the local Docker Compose stack. They show topology, user actions, a Visits crash prediction, and source freshness. They are a snapshot, not a live dashboard; the saved [map JSON](../reports/dependency-map.json) is their data source.
