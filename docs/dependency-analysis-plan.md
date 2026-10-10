@@ -1,6 +1,8 @@
 # Service dependency and blast-radius plan
 
-Status: proposed for the local Spring PetClinic Compose sandbox, 2026-10-10.
+Status: V1 implemented for the local Spring PetClinic Compose sandbox, 2026-10-10. The retained sections below document the design and its original milestones.
+
+The implementation uses `dependency-semantics.json`, `chaoslab/dependency_model.py`, and `chaoslab/blast_radius.py`. `chaoslab map` produces the shared versioned snapshot and interactive HTML report; `chaoslab impact` reads the snapshot without injecting faults. Guarded runs capture a prediction and compare it with HTTP status, latency, and owner-details visit completeness. A short local Visits crash run matched the predicted partial owner-details response (`200` with missing visits) and direct visit failures. The watchdog reverted the fault; full correctness recovery did not occur because baseline visit IDs were still absent after restart. The run artifact stays under ignored `runs/`.
 
 ## Findings from this repository
 

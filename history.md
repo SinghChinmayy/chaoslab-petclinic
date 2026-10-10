@@ -6,6 +6,9 @@ This file records meaningful, user-facing changes to the project. Detailed imple
 
 ### Added
 
+- Added a shared, evidence-backed dependency snapshot and qualitative impact view for the CLI and report, with runtime and startup predictions, scenario filters, and fallback assumptions.
+- Added owner-details correctness monitoring and prediction-versus-observation results to guarded experiments and the report, including recovery checks and accurate handling of unsampled actions.
+- Added explicit uncertainty for owner-details datastore paths until the active datasource is verified.
 - Added an evidence-based plan for shared dependency mapping and qualitative blast-radius analysis, including runtime versus restart impact and semantic validation.
 - Established a project change history and commit-tracking convention.
 - Added cAdvisor-backed per-container CPU, memory, and network metrics to Prometheus, with setup and verification guidance.

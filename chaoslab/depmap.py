@@ -14,16 +14,17 @@ import json
 import re
 import time
 from collections import Counter, defaultdict
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from .docker import docker
+from .dependency_model import enrich, validate
 from .settings import (ACTION_ROUTES, COMPOSE_FILE, COMPOSE_PROJECT, EUREKA_URL, LOCUST_URL, MAP_FILE,
-                       MAP_OVERRIDES_FILE, REPORTS_DIR, TARGET_LABEL, ZIPKIN_URL)
+                       MAP_OVERRIDES_FILE, PROMETHEUS_URL, REPORTS_DIR, TARGET_LABEL, ZIPKIN_URL)
 
 LOOKBACK_MS = 15 * 60 * 1000   # use the last 15 minutes of traces
 MAX_TRACES = 2000
-CRITICAL_SHARE = 0.5           # a service on at least half of all user requests is critical
 
 
 def _get_json(url: str):
@@ -33,6 +34,14 @@ def _get_json(url: str):
 
 def _datastore(service: str) -> str:
     return f"{service.removesuffix('-service')}-db"
+
+
+def _trace_child(parent: str, child: str, containers: set[str]) -> str:
+    if child in containers:
+        return child
+    if parent and re.search(r"mysql|postgres|hsql|h2|jdbc|database", child, re.IGNORECASE):
+        return _datastore(parent)
+    return child
 
 
 def _paths_from_traces(traces: list, containers: set[str]) -> dict[str, dict]:
@@ -59,7 +68,7 @@ def _paths_from_traces(traces: list, containers: set[str]) -> dict[str, dict]:
             remote = (span.get("remoteEndpoint") or {}).get("serviceName")
             services.add(local)
             if span.get("kind") == "CLIENT" and remote:
-                services.add(remote if remote in containers else _datastore(local))
+                services.add(_trace_child(local, remote, containers))
         seen[action].update(services - {None})
     # Keep services present in at least half of an action's traces, ignoring odd partial ones.
     return {action: {"services": sorted(s for s, n in seen[action].items() if n >= count[action] / 2),
@@ -70,9 +79,18 @@ def _paths_from_traces(traces: list, containers: set[str]) -> dict[str, dict]:
 def build() -> dict:
     sources: dict[str, str] = {}
     warnings: list[str] = []
+    source_state: dict[str, dict] = {}
+
+    def source(name: str, status: str, detail: str, ttl: int | None = None) -> None:
+        observed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        source_state[name] = {"status": status, "detail": detail, "observed_at": observed_at,
+                              "ttl_seconds": ttl}
 
     # 1. Docker Compose: containers, their roles, and startup dependencies.
     compose = json.loads(docker("compose", "--file", str(COMPOSE_FILE), "config", "--format", "json"))["services"]
+    # Include profile-gated services in the catalog without claiming they run.
+    all_compose = json.loads(docker("compose", "--profile", "genai", "--file", str(COMPOSE_FILE),
+                                    "config", "--format", "json"))["services"]
     load_gen, entry = next(
         (name, urlparse(cmd[cmd.index("--host") + 1]).hostname)
         for name, svc in compose.items()
@@ -85,6 +103,7 @@ def build() -> dict:
         for dep in deps:
             needed_by[dep].append(name)
     sources["docker compose"] = f"{len(compose)} containers, {len(targets)} app services"
+    source("docker compose", "available", sources["docker compose"])
 
     def role(name: str) -> str:
         if name == entry:
@@ -95,19 +114,39 @@ def build() -> dict:
 
     # 2. Running instances come from Docker; Eureka is cross-checked against them,
     #    because a stale registration sends users to an address that is gone.
-    running = Counter(docker("ps", "--filter", f"label=com.docker.compose.project={COMPOSE_PROJECT}",
-                             "--format", '{{.Label "com.docker.compose.service"}}').split())
+    try:
+        running = Counter(docker("ps", "--filter", f"label=com.docker.compose.project={COMPOSE_PROJECT}",
+                                 "--format", '{{.Label "com.docker.compose.service"}}').split())
+        source("docker", "available", f"{sum(running.values())} running containers", 30)
+    except Exception as err:
+        running = None
+        source("docker", "unavailable", str(err), 30)
+        warnings.append(f"Docker runtime unavailable ({err}); instance counts are unknown")
     try:
         apps = _get_json(f"{EUREKA_URL}/eureka/apps")["applications"]["application"]
         registered = {a["name"].lower(): len(a["instance"]) for a in apps}
         sources["eureka"] = f"{len(registered)} services registered"
-        for name, count in sorted(registered.items()):
-            if count != running.get(name, 0):
-                warnings.append(f"Eureka lists {count} instance(s) of {name} but {running.get(name, 0)} "
-                                "container(s) run: stale registrations can route users to a dead address")
+        source("eureka", "available", sources["eureka"], 30)
+        if running is not None:
+            for name, count in sorted(registered.items()):
+                if count != running.get(name, 0):
+                    warnings.append(f"Eureka lists {count} instance(s) of {name} but {running.get(name, 0)} "
+                                    "container(s) run: stale registrations can route users to a dead address")
     except Exception as err:
-        registered = {}
+        registered = None
+        source("eureka", "unavailable", str(err), 30)
         warnings.append(f"Eureka unavailable ({err}); registrations not checked")
+
+    # Prometheus scrape health is a signal, not proof of an application call.
+    try:
+        target_data = _get_json(f"{PROMETHEUS_URL}/api/v1/targets?state=active")["data"]["activeTargets"]
+        scrape_health = {item.get("labels", {}).get("job"): item.get("health", "unknown")
+                         for item in target_data}
+        source("prometheus", "available", f"{len(target_data)} active scrape targets", 30)
+    except Exception as err:
+        scrape_health = {}
+        source("prometheus", "unavailable", str(err), 30)
+        warnings.append(f"Prometheus unavailable ({err}); scrape health is unknown")
 
     # 3. Zipkin: runtime calls and per-action paths.
     now_ms = int(time.time() * 1000)
@@ -117,7 +156,7 @@ def build() -> dict:
     try:
         for dep in _get_json(f"{ZIPKIN_URL}/api/v2/dependencies?endTs={now_ms}&lookback={LOOKBACK_MS}"):
             parent = dep["parent"]
-            child = dep["child"] if dep["child"] in compose else _datastore(parent)
+            child = _trace_child(parent, dep["child"], set(all_compose))
             calls[parent, child] += dep["callCount"]
             errors[parent, child] += dep.get("errorCount", 0)
         traces = _get_json(f"{ZIPKIN_URL}/api/v2/traces?serviceName={entry}"
@@ -125,7 +164,9 @@ def build() -> dict:
         traced = _paths_from_traces(traces, set(compose))
         sources["zipkin"] = (f"{len(traces)} traces and {len(calls)} call edges "
                              f"from the last {LOOKBACK_MS // 60000} minutes")
+        source("zipkin", "available" if traces else "empty", sources["zipkin"], LOOKBACK_MS // 1000)
     except Exception as err:
+        source("zipkin", "unavailable", str(err), LOOKBACK_MS // 1000)
         warnings.append(f"Zipkin unavailable ({err}); runtime calls are unknown")
 
     # User actions: traces first, manual corrections where the traces fall short.
@@ -150,36 +191,42 @@ def build() -> dict:
         volume = {s["name"]: s["num_requests"] for s in _get_json(f"{LOCUST_URL}/stats/requests")["stats"]
                   if s["name"] in ACTION_ROUTES}
         sources["locust"] = f"{sum(volume.values())} user requests across {len(volume)} actions"
+        source("locust", "available" if sum(volume.values()) else "empty", sources["locust"], 30)
     except Exception as err:
-        volume = {}
+        volume = None
+        source("locust", "unavailable", str(err), 30)
         warnings.append(f"Locust unavailable ({err}); traffic shares are unknown")
-    total = sum(volume.values()) or 1
+    total = sum(volume.values()) if volume else 0
     for name, action in actions.items():
-        action["share_of_requests"] = round(volume.get(name, 0) / total, 3)
+        action["share_of_requests"] = round(volume.get(name, 0) / total, 3) if total else None
 
-    # Nodes with the facts a planner needs to judge how risky each one is.
+    # Nodes with observed exposure and availability facts, not severity scores.
     nodes: dict[str, dict] = {}
     for name in sorted(targets):
         nodes[name] = {
             "id": name, "role": role(name), "kind": "container",
-            "instances": running.get(name, 0),
-            "registered_in_eureka": registered.get(name, 0),
+            "instances": running.get(name, 0) if running is not None else None,
+            "registered_in_eureka": registered.get(name, 0) if registered is not None else None,
+            "health": scrape_health.get(name, "unknown"),
             "auto_restart": compose[name].get("restart") not in (None, "no"),
             "needs_at_startup": needs[name],
             "needed_at_startup_by": sorted(needed_by[name]),
         }
     for parent, child in calls:
         if child not in nodes:
-            nodes[child] = {"id": child, "role": "datastore", "kind": f"embedded in {parent}",
-                            "instances": 1, "inside": parent}
+            datastore = child == _datastore(parent)
+            nodes[child] = {"id": child, "role": "datastore" if datastore else "external",
+                            "kind": f"embedded in {parent}" if datastore else "observed endpoint",
+                            "instances": None, **({"inside": parent} if datastore else {})}
     for node in nodes.values():
         on = [a for a, action in actions.items() if node["id"] in action["services"]]
         node["user_actions"] = on
-        node["share_of_requests"] = round(sum(actions[a]["share_of_requests"] for a in on), 3)
+        node["share_of_requests"] = (round(sum(actions[a]["share_of_requests"] for a in on), 3)
+                                     if total else None)
         node["callers"] = sorted({p for p, c in calls if c == node["id"]})
         node["calls"] = sorted({c for p, c in calls if p == node["id"]})
         hints = []
-        if node["role"] != "datastore" and node["instances"] == 1:
+        if node["role"] not in ("datastore", "external") and node["instances"] == 1:
             hints.append("single instance")
         if node["kind"] == "container" and not node["auto_restart"]:
             hints.append("no auto-restart")
@@ -187,11 +234,9 @@ def build() -> dict:
             hints.append(f"embedded: fails and restarts together with {node['inside']}")
         if node.get("needed_at_startup_by"):
             hints.append(f"{len(node['needed_at_startup_by'])} services need it to start")
-        if node["share_of_requests"] >= CRITICAL_SHARE:
+        if node["share_of_requests"] is not None and node["share_of_requests"] > 0:
             hints.append(f"on {node['share_of_requests']:.0%} of user requests")
         node["risk_hints"] = hints
-        node["critical"] = (node["share_of_requests"] >= CRITICAL_SHARE
-                            or len(node.get("needed_at_startup_by", [])) >= 2)
 
     edges = [{"from": "users", "to": entry, "type": "traffic", "source": "locust"}]
     edges += [{"from": p, "to": c, "type": "calls", "calls": n, "errors": errors[p, c], "source": "zipkin"}
@@ -205,7 +250,7 @@ def build() -> dict:
     edges += [{"from": n, "to": d, "type": "needs at startup", "source": "docker compose"}
               for n in sorted(needs) for d in needs[n]]
 
-    return {
+    base = {
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "entry_point": entry,
         "load_generator": load_gen,
@@ -216,13 +261,40 @@ def build() -> dict:
         "user_actions": actions,
         "not_mapped": sorted(n for n in compose if n not in targets),
     }
+    # Keep inactive profile services visible without treating them as live.
+    profile_targets = set()
+    for name, service in all_compose.items():
+        if name not in compose and (service.get("labels") or {}).get(TARGET_LABEL) == "true":
+            profile_targets.add(name)
+            profile_running = running.get(name, 0) if running is not None else None
+            base["nodes"].append({"id": name, "role": "service", "kind": "container",
+                                  "instances": profile_running,
+                                  "registered_in_eureka": registered.get(name, 0) if registered is not None else None,
+                                  "auto_restart": False,
+                                  "health": scrape_health.get(name, "unknown" if profile_running else "inactive"),
+                                  "needs_at_startup": list(service.get("depends_on") or {}),
+                                  "needed_at_startup_by": [], "user_actions": [],
+                                  "share_of_requests": None, "callers": [], "calls": [],
+                                  "risk_hints": [] if profile_running else ["inactive profile"]})
+    active_services = targets | ({name for name in profile_targets if running and running.get(name, 0)})
+    return enrich(base, active_services=active_services, source_state=source_state)
 
 
 def action_services() -> dict[str, set[str]] | None:
     """Services each user action passes through, from the last saved map."""
     if not MAP_FILE.exists():
         return None
-    return {name: set(a["services"]) for name, a in json.loads(MAP_FILE.read_text())["user_actions"].items()}
+    return {name: set(a["services"]) | set(a.get("declared_services", []))
+            for name, a in json.loads(MAP_FILE.read_text())["user_actions"].items()}
+
+
+def load() -> dict:
+    """Read a V1 snapshot, refreshing source staleness for the current time."""
+    from .dependency_model import refresh_freshness
+
+    snapshot = json.loads(MAP_FILE.read_text())
+    validate(snapshot)
+    return refresh_freshness(snapshot)
 
 
 # ---------------------------------------------------------------- rendering
@@ -232,12 +304,15 @@ def mermaid(m: dict) -> str:
         return re.sub(r"\W", "_", name)
 
     def label(node: dict) -> str:
-        lines = [node["id"]]
+        lines = [html.escape(node["id"], quote=True)]
         if node["role"] == "datastore":
-            lines.append(node["kind"])
+            lines.append(html.escape(node["kind"], quote=True))
         else:
-            lines.append(f"{node['share_of_requests']:.0%} of requests, {node['instances']} instance"
-                         + ("" if node["instances"] == 1 else "s"))
+            share = (f"{node['share_of_requests']:.0%} of requests"
+                     if node.get("share_of_requests") is not None else "traffic unknown")
+            instances = node.get("instances")
+            lines.append(f"{share}, {instances if instances is not None else '?'} instance"
+                         + ("" if instances == 1 else "s"))
         return "<br/>".join(lines)
 
     by_role = defaultdict(list)
@@ -249,46 +324,71 @@ def mermaid(m: dict) -> str:
     out += [f'    {nid(n["id"])}["{label(n)}"]' for n in by_role["platform"]]
     out += ["  end"]
     out += [f'  {nid(n["id"])}[("{label(n)}")]' for n in by_role["datastore"]]
-    platform = {n["id"] for n in by_role["platform"]}
+    out += [f'  {nid(n["id"])}["{label(n)}"]' for n in by_role["external"]]
+    startup_edges = {(e["from"], e["to"]) for e in m["edges"]
+                     if e["type"] == "needs at startup"}
+    drawn_calls = set()
     for e in m["edges"]:
         if e["type"] == "traffic":
             out.append(f"  users ==> {nid(e['to'])}")
         elif e["type"] == "calls":
+            drawn_calls.add((e["from"], e["to"]))
             text = f"{e['calls']} calls" if e["source"] == "zipkin" else "manual correction"
             if e.get("errors"):
                 text += f", {e['errors']} errors"
             arrow = "-->" if e["source"] == "zipkin" else "-.->"
             out.append(f'  {nid(e["from"])} {arrow}|"{text}"| {nid(e["to"])}')
-        elif e["from"] in platform and e["to"] in platform:
-            out.append(f'  {nid(e["from"])} -.->|"needs at startup"| {nid(e["to"])}')
-    out.append('  app -.->|"needs at startup"| platform')
-    critical = [nid(n["id"]) for n in m["nodes"] if n.get("critical")]
-    out.append("  classDef critical stroke:#D85A30,stroke-width:3px")
-    if critical:
-        out.append(f"  class {','.join(critical)} critical")
+    for dep in m.get("dependencies", []):
+        pair = (dep["consumer"], dep["provider"])
+        if dep.get("feature") and pair not in drawn_calls:
+            label_text = html.escape(dep["feature"], quote=True)
+            out.append(f'  {nid(pair[0])} -->|"{label_text}"| {nid(pair[1])}')
+            drawn_calls.add(pair)
+        elif dep["id"].startswith("persistence:") and pair not in drawn_calls:
+            out.append(f'  {nid(pair[0])} -.->|"inferred persistence"| {nid(pair[1])}')
+            drawn_calls.add(pair)
+        elif dep["purpose"] in ("configuration", "service_discovery") and "startup" in dep["phases"]:
+            if pair not in startup_edges:
+                continue
+            label_text = "config at startup" if dep["purpose"] == "configuration" else "discovery at startup"
+            out.append(f'  {nid(pair[0])} -.->|"{label_text}"| {nid(pair[1])}')
     return "\n".join(out)
 
 
 def _rows(m: dict) -> tuple[list[list[str]], list[list[str]]]:
-    services = [[n["id"], n["role"], f"{n['share_of_requests']:.0%}", str(n["instances"]),
+    services = [[n["id"], n["role"],
+                 f"{n['share_of_requests']:.0%}" if n.get("share_of_requests") is not None else "unknown",
+                 str(n["instances"]) if n.get("instances") is not None else "unknown",
                  "n/a" if n["role"] == "datastore" else ("yes" if n["auto_restart"] else "no"),
                  ", ".join(n.get("needs_at_startup", [])) or "-",
                  "; ".join(n["risk_hints"]) or "-"]
-                for n in sorted(m["nodes"], key=lambda n: -n["share_of_requests"])]
-    actions = [[name, f"`{a['route']}`", f"{a['share_of_requests']:.0%}",
-                " -> ".join(a["services"]) or "unknown",
+                for n in sorted(m["nodes"], key=lambda n: -(n.get("share_of_requests") or 0))]
+    actions = [[name, f"`{a['route']}`",
+                f"{a['share_of_requests']:.0%}" if a.get("share_of_requests") is not None else "unknown",
+                " -> ".join(a.get("declared_services") or a["services"]) or "unknown",
                 a["source"] + (f" ({a['traces']} traces)" if a["traces"] else "")]
                for name, a in m["user_actions"].items()]
     return services, actions
 
 
+def _dependency_rows(m: dict) -> list[list[str]]:
+    return [[d["consumer"], d["provider"], d.get("feature") or "service", d["purpose"],
+             ", ".join(d["phases"]), d["verification"],
+             d.get("effects", {}).get("unavailable", {}).get("behavior", "unknown"),
+             "; ".join(e["locator"] for e in d["evidence"])]
+            for d in m.get("dependencies", [])]
+
+
+DEPENDENCY_COLUMNS = ["Consumer", "Provider", "Feature", "Purpose", "Phase", "Verified",
+                      "If unavailable", "Evidence"]
+
+
 SERVICE_COLUMNS = ["Service", "Role", "Share of user requests", "Instances", "Auto-restart",
                    "Needs at startup", "Risk hints"]
 ACTION_COLUMNS = ["User action", "Route", "Share of requests", "Passes through", "Source"]
-INTRO = ("Discovered automatically from Docker Compose, Eureka, Zipkin traces and Locust traffic. "
-         "Thick orange borders mark critical services: on at least half of all user requests, "
-         "or needed by two or more services to start. Dashed arrows are startup dependencies "
-         "or manual corrections.")
+INTRO = ("Source-backed relationships are reconciled with Docker Compose, Eureka, Zipkin, "
+         "Prometheus and Locust observations. Missing telemetry is unknown, not zero impact. "
+         "Dashed arrows are startup dependencies or manual corrections.")
 
 
 def markdown(m: dict) -> str:
@@ -301,14 +401,20 @@ def markdown(m: dict) -> str:
              f"```mermaid\n{mermaid(m)}\n```\n",
              "## Services\n", table(SERVICE_COLUMNS, services) + "\n",
              "## User actions (data flows)\n", table(ACTION_COLUMNS, actions) + "\n",
-             "## Notes and manual corrections\n"]
+             "## Dependency semantics\n", table(DEPENDENCY_COLUMNS, _dependency_rows(m)) + "\n",
+             "## Runtime sources\n"]
+    parts += [f"- **{name}**: {state['status']}; observed {state['observed_at']}"
+              for name, state in m.get("source_state", {}).items()]
+    parts += ["\n## Notes and manual corrections\n"]
     parts += [f"- {w}" for w in m["warnings"]] or ["- none"]
     parts += ["\n## Sources\n"] + [f"- **{k}**: {v}" for k, v in m["sources"].items()]
     parts += [f"- Not mapped (our own tooling): {', '.join(m['not_mapped'])}\n"]
     return "\n".join(parts)
 
 
-def html_page(m: dict) -> str:
+def html_page(m: dict, run: dict | None = None) -> str:
+    from .blast_radius import FAILURE_MODES, analyze
+
     def table(columns, rows):
         head = "".join(f"<th>{html.escape(c)}</th>" for c in columns)
         body = "".join("<tr>" + "".join(f"<td>{html.escape(c.strip('`'))}</td>" for c in r) + "</tr>"
@@ -318,6 +424,24 @@ def html_page(m: dict) -> str:
     services, actions = _rows(m)
     notes = "".join(f"<li>{html.escape(w)}</li>" for w in m["warnings"]) or "<li>none</li>"
     sources = "".join(f"<li><b>{html.escape(k)}</b>: {html.escape(v)}</li>" for k, v in m["sources"].items())
+    states = "".join(f'<li data-observed="{html.escape(state["observed_at"])}" '
+                     f'data-ttl="{state.get("ttl_seconds") or 0}">'
+                     f"<b>{html.escape(name)}</b>: {html.escape(state['status'])} "
+                     f"(observed {html.escape(state['observed_at'])})</li>"
+                     for name, state in m.get("source_state", {}).items())
+    candidates = [n["id"] for n in m["nodes"] if n.get("active") and n.get("kind") == "container"]
+    predictions = {name: {failure: analyze(m, name, failure) for failure in FAILURE_MODES}
+                   for name in candidates}
+    prediction_json = json.dumps(predictions).replace("<", "\\u003c").replace(">", "\\u003e")
+    run_view = None
+    if run and (run.get("prediction") or {}).get("snapshot_id") == m.get("snapshot_id"):
+        run_view = {"id": run["id"], "fault": run["fault"], "outcome": run["outcome"],
+                    "recovered": run.get("recovered"), "recovery_pending": run.get("recovery_pending", False),
+                    "comparison": run.get("prediction_comparison", {})}
+    run_json = json.dumps(run_view).replace("<", "\\u003c").replace(">", "\\u003e")
+    options = "".join(f'<option value="{html.escape(name)}">{html.escape(name)}</option>'
+                      for name in candidates)
+    failure_options = "".join(f'<option value="{name}">{name}</option>' for name in FAILURE_MODES)
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dependency map</title>
@@ -328,16 +452,70 @@ def html_page(m: dict) -> str:
   th, td {{ border: 1px solid #ddd; padding: 6px 10px; text-align: left; vertical-align: top; }}
   th {{ background: #f5f5f3; }}
   .meta {{ color: #555; max-width: 900px; }}
+  #impact li {{ margin: 8px 0; }}
 </style></head><body>
 <h1>Dependency map</h1>
 <p class="meta">Generated {html.escape(m['generated_at'])}. {html.escape(INTRO)}</p>
 <pre class="mermaid">{html.escape(mermaid(m))}</pre>
 <h2>Services</h2>{table(SERVICE_COLUMNS, services)}
 <h2>User actions (data flows)</h2>{table(ACTION_COLUMNS, actions)}
+<h2>Dependency semantics</h2>{table(DEPENDENCY_COLUMNS, _dependency_rows(m))}
+<h2>Potential blast radius</h2>
+<p>Predictions are qualitative. Select a target, failure, and phase; evidence and uncertainty are shown for each impact.</p>
+<label>Target <select id="target">{options}</select></label>
+<label>Failure <select id="failure">{failure_options}</select></label>
+<label>Phase <select id="phase"><option value="runtime">Running services</option>
+<option value="startup_restart">Startup and restart</option></select></label>
+<ul id="impact"></ul>
+<h2>Latest run comparison</h2><p id="run-meta">No run for this snapshot yet.</p>
+<ul id="run-comparison"></ul>
+<h2>Runtime source status</h2><ul>{states}</ul>
 <h2>Notes and manual corrections</h2><ul>{notes}</ul>
 <h2>Sources</h2><ul>{sources}</ul>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
-<script>mermaid.initialize({{ startOnLoad: true, securityLevel: "strict" }});</script>
+<script>
+mermaid.initialize({{ startOnLoad: true, securityLevel: "strict" }});
+const predictions = {prediction_json};
+const latestRun = {run_json};
+const target = document.getElementById('target');
+const failure = document.getElementById('failure');
+const phase = document.getElementById('phase');
+const impact = document.getElementById('impact');
+const runMeta = document.getElementById('run-meta');
+const runComparison = document.getElementById('run-comparison');
+function renderImpact() {{
+  impact.replaceChildren();
+  runComparison.replaceChildren();
+  if (latestRun && latestRun.fault.target === target.value && latestRun.fault.kind === failure.value && phase.value === 'runtime') {{
+    runMeta.textContent = `${{latestRun.id}}: ${{latestRun.outcome}}; recovery ${{latestRun.recovery_pending ? 'pending' : latestRun.recovered ? 'confirmed' : 'not confirmed'}}`;
+    for (const [name, comparison] of Object.entries(latestRun.comparison)) {{
+      const li = document.createElement('li');
+      const signals = (comparison.observed_statuses || []).length ? `; HTTP ${{comparison.observed_statuses.join('/')}}, peak probe ${{comparison.peak_observed_latency_ms}}ms, recovery ${{comparison.recovery_correctness || 'unobserved'}}` : '';
+      li.textContent = `${{name}}: predicted ${{comparison.predicted}}, observed ${{comparison.observed}} (${{comparison.match}}; ${{comparison.fault_requests}} fault requests, ${{comparison.fault_probes || 0}} correctness probes${{signals}})`;
+      runComparison.append(li);
+    }}
+  }} else {{
+    runMeta.textContent = latestRun ? 'Select the latest run target, failure, and running phase to compare.' : 'No run for this snapshot yet.';
+  }}
+  const items = predictions[target.value]?.[failure.value]?.[phase.value] || [];
+  if (!items.length) {{ const li = document.createElement('li'); li.textContent = 'No supported impact predicted for this phase.'; impact.append(li); return; }}
+  for (const item of items) {{
+    const li = document.createElement('li');
+    const evidence = item.evidence.map(e => e.locator).join('; ');
+    li.textContent = `${{item.component}}: ${{item.outcome}} — ${{item.behavior}}. Path: ${{item.path.join(' → ')}}. Evidence: ${{evidence}}.` +
+      (item.uncertainties.length ? ` Uncertainty: ${{item.uncertainties.join('; ')}}.` : '');
+    impact.append(li);
+  }}
+}}
+for (const item of document.querySelectorAll('[data-observed]')) {{
+  const ttl = Number(item.dataset.ttl);
+  if (ttl && Date.now() - Date.parse(item.dataset.observed) > ttl * 1000) {{
+    item.append(' — stale observation');
+  }}
+}}
+for (const control of [target, failure, phase]) control.addEventListener('change', renderImpact);
+renderImpact();
+</script>
 </body></html>
 """
 
@@ -349,3 +527,15 @@ def save(m: dict) -> list[str]:
     (REPORTS_DIR / "dependency-map.html").write_text(html_page(m))
     return [str(p.relative_to(REPORTS_DIR.parent)) for p in
             (MAP_FILE, REPORTS_DIR / "dependency-map.md", REPORTS_DIR / "dependency-map.html")]
+
+
+def update_run_report(run: dict) -> bool:
+    """Show a completed or checkpointed run in the saved snapshot's HTML view."""
+    try:
+        snapshot = load()
+    except (FileNotFoundError, ValueError):
+        return False
+    if (run.get("prediction") or {}).get("snapshot_id") != snapshot.get("snapshot_id"):
+        return False
+    (REPORTS_DIR / "dependency-map.html").write_text(html_page(snapshot, run))
+    return True

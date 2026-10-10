@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-10-10",
+  "features": {
+    "list owners": {
+      "route": "/api/customer/owners",
+      "steps": [{"provider": "customers-service", "purpose": "routing", "requirement": "required",
+        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503},
+        "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml"}]
+    },
+    "owner details": {
+      "route": "/api/gateway/owners/{ownerId}",
+      "oracle": "baseline_visit_ids_present",
+      "steps": [
+        {"provider": "customers-service", "purpose": "request_data", "requirement": "required",
+         "unavailable": {"outcome": "unavailable", "behavior": "Owner lookup has no local fallback"},
+         "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/java/org/springframework/samples/petclinic/api/boundary/web/ApiGatewayController.java#getOwnerDetails"},
+        {"provider": "visits-service", "purpose": "request_data", "requirement": "required_for_complete_data",
+         "unavailable": {"outcome": "degraded", "behavior": "Circuit breaker can supply an empty visits list", "http_status": 200, "data": "visits omitted",
+           "assumptions": ["Customers owner lookup succeeds", "Visits failure reaches the Gateway circuit breaker fallback"],
+           "uncertainties": ["Circuit state, timeout, and fault direction determine whether the fallback activates"]},
+         "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/java/org/springframework/samples/petclinic/api/boundary/web/ApiGatewayController.java#emptyVisitsForPets"}
+      ]
+    },
+    "list vets": {
+      "route": "/api/vet/vets",
+      "cache": {"profile": "production", "active_in_docker": false,
+        "evidence": "spring-petclinic-microservices/spring-petclinic-vets-service/src/main/java/org/springframework/samples/petclinic/vets/system/CacheConfig.java"},
+      "steps": [{"provider": "vets-service", "purpose": "routing", "requirement": "required",
+        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503},
+        "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml"}]
+    },
+    "pet types": {
+      "route": "/api/customer/petTypes",
+      "steps": [{"provider": "customers-service", "purpose": "routing", "requirement": "required",
+        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503},
+        "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml"}]
+    },
+    "add visit": {
+      "route": "/api/visit/owners/{ownerId}/pets/{petId}/visits",
+      "steps": [{"provider": "visits-service", "purpose": "routing", "requirement": "required",
+        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503},
+        "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml"}]
+    },
+    "genai chat": {
+      "route": "/api/genai/**",
+      "steps": [{"provider": "genai-service", "purpose": "routing", "requirement": "optional_feature",
+        "unavailable": {"outcome": "unavailable", "behavior": "Optional chatbot route returns its 503 fallback", "http_status": 503},
+        "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml"}]
+    }
+  },
+  "config_clients": ["discovery-server", "customers-service", "visits-service", "vets-service", "api-gateway", "admin-server", "genai-service"],
+  "discovery_clients": ["customers-service", "visits-service", "vets-service", "api-gateway", "admin-server", "genai-service"]
+}

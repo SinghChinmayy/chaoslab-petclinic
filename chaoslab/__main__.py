@@ -10,10 +10,11 @@
 """
 
 import argparse
+import json
 import sys
 import time
 
-from . import depmap, experiment, safety
+from . import blast_radius, depmap, experiment, safety
 from .docker import targets
 from .faults import FAULTS
 
@@ -43,6 +44,10 @@ def print_summary(r: dict) -> None:
           f"(baseline {_pct(r['baseline']['error_rate'])}, {r['baseline']['p95_ms']}ms)")
     print("Recovery           " + (f"{r['recovery_s']}s after the fault was undone"
                                    if r["recovered"] else "NOT recovered in time"))
+    semantic = r.get("semantic_recovery")
+    if semantic and semantic["correctness"] != "preserved":
+        print(f"Response data      {semantic['correctness']}; missing baseline visit IDs: "
+              f"{semantic['missing_visit_ids']}")
     print("\nImpact by user action          baseline  fault+recovery")
     for name, i in r["impact_by_action"].items():
         tag = " (uses target)" if i["uses_target"] else ""  # None: no map yet
@@ -55,8 +60,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="chaoslab",
                                      description="Safe, controlled failure injection for the local sandbox.")
     sub = parser.add_subparsers(dest="cmd", required=True,
-                                metavar="{map,faults,targets,status,stop,run}")
+                                metavar="{map,impact,faults,targets,status,stop,run}")
     sub.add_parser("map", help="discover the dependency map and write it to reports/")
+    impact = sub.add_parser("impact", help="predict a failure's blast radius without injecting it")
+    impact.add_argument("target")
+    impact.add_argument("--failure", choices=sorted(FAULTS), default="kill")
+    impact.add_argument("--phase", choices=("runtime", "startup_restart"))
+    impact.add_argument("--feature", help="show one source-backed user feature")
+    impact.add_argument("--json", action="store_true", help="print the shared JSON contract")
     sub.add_parser("faults", help="list the failure types and their limits")
     sub.add_parser("targets", help="list the containers that may be faulted")
     sub.add_parser("status", help="show active faults")
@@ -66,6 +77,8 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("target")
     run.add_argument("--duration", type=int, default=60, help="seconds to keep the fault (default 60)")
     run.add_argument("--baseline", type=int, default=20, help="seconds of steady-state measurement first")
+    run.add_argument("--recovery-timeout", type=int, default=240,
+                     help="maximum seconds to wait for recovery after revert")
     run.add_argument("--delay-ms", type=int, default=1000, help="delay: added latency")
     run.add_argument("--jitter-ms", type=int, default=0, help="delay: random variation")
     run.add_argument("--loss-pct", type=float, default=20, help="loss: share of packets dropped (100 = cut off)")
@@ -83,12 +96,34 @@ def main(argv: list[str] | None = None) -> int:
         for path in depmap.save(m):
             print(f"wrote {path}")
         print(f"\n{len(m['nodes'])} nodes, {len(m['edges'])} edges, {len(m['user_actions'])} user actions")
-        for node in sorted(m["nodes"], key=lambda n: -n["share_of_requests"]):
-            flag = "CRITICAL " if node["critical"] else "         "
-            print(f"  {flag}{node['id']:<18} {node['share_of_requests']:>4.0%} of requests  "
+        for node in sorted(m["nodes"], key=lambda n: -(n.get("share_of_requests") or 0)):
+            share = (f"{node['share_of_requests']:.0%}" if node.get("share_of_requests") is not None
+                     else "unknown")
+            print(f"  {node['id']:<18} {share:>7} of requests  "
                   f"{'; '.join(node['risk_hints'])}")
         for warning in m["warnings"]:
             print(f"  note: {warning}")
+    elif args.cmd == "impact":
+        try:
+            prediction = blast_radius.analyze(depmap.load(), args.target, args.failure,
+                                              phase=args.phase, feature=args.feature)
+        except (FileNotFoundError, ValueError) as err:
+            print(f"Cannot analyze impact: {err}. Run `python3 -m chaoslab map` first.", file=sys.stderr)
+            return 2
+        if args.json:
+            print(json.dumps(prediction, indent=2))
+        else:
+            print(f"Potential impact of {args.failure} on {args.target} (snapshot {prediction['snapshot_id']})")
+            for phase in ([args.phase] if args.phase else ("runtime", "startup_restart")):
+                print(f"\n{phase.replace('_', ' ').title()}:")
+                for item in prediction[phase]:
+                    print(f"  {item['component']}: {item['outcome']} — {item['behavior']}")
+                    print(f"    path: {' -> '.join(item['path'])}; evidence: "
+                          f"{', '.join(e['locator'] for e in item['evidence'])}")
+                    for uncertainty in item["uncertainties"]:
+                        print(f"    uncertainty: {uncertainty}")
+                if not prediction[phase]:
+                    print("  no supported impact predicted")
     elif args.cmd == "faults":
         for kind, fault in FAULTS.items():
             limits = ", ".join(f"{p} {lo}..{hi}" for p, (lo, hi) in fault.limits.items()
@@ -114,7 +149,8 @@ def main(argv: list[str] | None = None) -> int:
         params = fault_params(args.kind, args, duration + guard.expiry_grace_s)
         fault = FAULTS[args.kind](args.target, **params)
         try:
-            result = experiment.run(fault, guard, duration, baseline_s=args.baseline)
+            result = experiment.run(fault, guard, duration, baseline_s=args.baseline,
+                                    recovery_timeout_s=args.recovery_timeout)
         except safety.SafetyError as err:
             print(f"REFUSED: {err}", file=sys.stderr)
             return 2

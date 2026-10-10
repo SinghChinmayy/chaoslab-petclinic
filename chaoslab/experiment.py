@@ -3,11 +3,14 @@
 import json
 import signal
 import statistics
+import threading
 import time
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
+from queue import Empty, SimpleQueue
 
-from . import depmap
+from . import blast_radius, depmap, semantic_probe
 from .faults import Fault
 from .metrics import LocustProbe, Sample, error_rates
 from .safety import (Guardrails, SafetyError, active_faults, arm_dead_mans_switch,
@@ -52,6 +55,18 @@ def _raise_interrupt(signum, frame):
     raise KeyboardInterrupt
 
 
+def _action_observations(before, after) -> dict:
+    """Per-action requests completed while the fault was active."""
+    observed = {}
+    for name, (requests, failures) in after.counts.items():
+        prior_requests, prior_failures = before.counts.get(name, (0, 0))
+        count = max(0, requests - prior_requests)
+        failed = max(0, failures - prior_failures)
+        observed[name] = {"request_count": count, "failure_count": failed,
+                          "error_rate": failed / count if count else None}
+    return observed
+
+
 def run(fault: Fault, guard: Guardrails, duration_s: int,
         baseline_s: int = 20, recovery_timeout_s: int = 240) -> dict:
     preflight(fault)
@@ -62,16 +77,57 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
     log = EventLog(run_dir / "events.jsonl")
     probe = LocustProbe()
     timeline: list[Sample] = []
+    semantic_observations: list[dict] = []
+    expected_visit_ids: set[int] | None = None
+    semantic_results: SimpleQueue[dict] = SimpleQueue()
+    semantic_thread: threading.Thread | None = None
+    semantic_phase: str | None = None
+    latest_correctness: str | None = None
+    prediction = None
+    try:
+        prediction = blast_radius.analyze(depmap.load(), fault.target, fault.kind)
+        prediction["captured_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    except (FileNotFoundError, ValueError) as err:
+        log("prediction", f"unavailable: {err}")
 
     def tick(phase: str) -> Sample:
+        nonlocal semantic_thread, semantic_phase, latest_correctness
         time.sleep(TICK_S)
         sample = probe.sample(log.elapsed(), phase)
+        if expected_visit_ids is not None:
+            if semantic_phase != phase:
+                latest_correctness = None
+                semantic_phase = phase
+            try:
+                while True:
+                    observation = semantic_results.get_nowait()
+                    semantic_observations.append(observation)
+                    if observation["phase"] == phase:
+                        latest_correctness = observation["correctness"]
+            except Empty:
+                pass
+            if semantic_thread is None or not semantic_thread.is_alive():
+                def observe(observed_phase: str) -> None:
+                    result = semantic_probe.check(expected_visit_ids)
+                    result.update(phase=observed_phase, elapsed=round(log.elapsed(), 1))
+                    semantic_results.put(result)
+
+                semantic_thread = threading.Thread(target=observe, args=(phase,), daemon=True)
+                semantic_thread.start()
+            sample.semantic_correctness = latest_correctness
         timeline.append(sample)
         return sample
 
     def save(result: dict) -> dict:
         result["timeline"] = [asdict(s) for s in timeline]
+        result["prediction"] = prediction
+        result["semantic_observations"] = semantic_observations
+        result["prediction_comparison"] = semantic_probe.compare(
+            prediction, semantic_observations,
+            result.get("fault_action_observations"))
         (run_dir / "result.json").write_text(json.dumps(result, indent=2))
+        if prediction is not None:
+            depmap.update_run_report(result)
         log("saved", f"{(run_dir / 'result.json').relative_to(ROOT)}")
         return result
 
@@ -106,6 +162,19 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         save({"id": run_dir.name, "fault": fault.to_dict(), "outcome": "refused",
               "abort_reason": problem, "baseline": baseline})
         raise SafetyError(f"system is not in a steady state: {problem}")
+
+    try:
+        semantic_baseline = semantic_probe.baseline()
+        expected_visit_ids = set(semantic_baseline["visit_ids"])
+        baseline["owner_details"] = semantic_baseline
+        log("baseline", f"owner {semantic_probe.OWNER_ID} has {len(expected_visit_ids)} visits",
+            owner_details=semantic_baseline)
+    except ValueError as err:
+        reason = f"semantic baseline unavailable: {err}"
+        log("refused", reason)
+        save({"id": run_dir.name, "fault": fault.to_dict(), "outcome": "refused",
+              "abort_reason": reason, "baseline": baseline})
+        raise SafetyError(reason) from err
 
     # 2. Inject. Register first, so the kill switch knows about the fault even
     #    if injection only half succeeds.
@@ -149,11 +218,17 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         log("abort", reason)
     finally:
         snap_revert = probe.snapshot()
+        fault_action_observations = _action_observations(snap_inject, snap_revert)
         if fault.id in active_faults():
             fault.revert()
             unregister(fault.id)
         t_revert = log.elapsed()
         log("revert", f"undone: {fault.describe()}")
+        # A durable checkpoint survives interruption during the recovery window.
+        save({"id": run_dir.name, "fault": fault.to_dict(), "outcome": outcome,
+              "abort_reason": reason, "baseline": baseline, "recovered": False,
+              "recovery_s": None, "recovery_pending": True,
+              "fault_action_observations": fault_action_observations})
 
     # 4. Recovery: how long until users see normal service again?
     recovered_at = None
@@ -167,7 +242,8 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         give_up = time.monotonic() + recovery_timeout_s
         while time.monotonic() < give_up:
             sample = tick("recovery")
-            ok = (sample.error_rate is not None and sample.error_rate <= limit_err
+            ok = (sample.semantic_correctness == "preserved"
+                  and sample.error_rate is not None and sample.error_rate <= limit_err
                   and (sample.p95_ms is None or sample.p95_ms <= limit_p95))
             if not ok:
                 healthy_since = None
@@ -208,6 +284,9 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         "peak_p95_ms": max((s.p95_ms for s in fault_samples if s.p95_ms is not None), default=None),
         "recovered": recovered_at is not None,
         "recovery_s": round(recovered_at - t_revert, 1) if recovered_at else None,
+        "semantic_recovery": next((observation for observation in reversed(semantic_observations)
+                                   if observation["phase"] == "recovery"), None),
+        "fault_action_observations": fault_action_observations,
         "impact_by_action": impact,
         "collateral_actions": collateral,
     })

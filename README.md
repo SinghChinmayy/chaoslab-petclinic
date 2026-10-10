@@ -96,7 +96,15 @@ See the [container resource monitoring guide](spring-petclinic-microservices/doc
 python3 -m chaoslab map     # writes reports/dependency-map.{json,md,html}
 ```
 
-The map is built from Docker Compose (startup dependencies), Docker and Eureka (running and registered instances), Zipkin traces (runtime calls and the services each user action passes through), and Locust (share of user traffic per service). Only successful requests are used to learn paths. Gaps the traces cannot see are filled from [map-overrides.json](map-overrides.json), each with a reason. The map flags critical services and risk hints such as a single instance, no automatic restart, or being needed by other services at startup.
+The versioned JSON map is shared by the CLI, future agents, and the HTML report. It combines source-backed feature rules in [dependency-semantics.json](dependency-semantics.json) with Docker Compose, Docker, Eureka, Prometheus, Zipkin, and Locust observations. Dependencies record their purpose, runtime or startup phase, evidence, verification status, and known fallback behavior. Missing or stale telemetry stays visible; it does not erase source-backed dependencies. [map-overrides.json](map-overrides.json) still documents trace gaps. Request share is exposure context, not a dependency weight or failure-severity score.
+
+```bash
+python3 -m chaoslab impact visits-service --failure kill         # qualitative prediction
+python3 -m chaoslab impact config-server --failure kill --json   # machine-readable contract
+python3 -m chaoslab impact visits-service --phase runtime --feature 'owner details'
+```
+
+The impact command is read-only. It reports running-service effects separately from startup/restart effects, with dependency paths, fallback assumptions, and uncertainty. Open `reports/dependency-map.html` to inspect the same semantics and switch target, failure, and phase. After a guarded run, the report also shows its prediction-versus-observation comparison when the run used the current snapshot. The [implementation plan](docs/dependency-analysis-plan.md) documents the V1 model, evidence rules, and limits.
 
 ## Chaos experiments
 
@@ -114,6 +122,10 @@ python3 -m chaoslab stop                                      # kill switch (or:
 ```
 
 Each run measures a baseline, refuses to start unless the system is in a steady state, injects one fault, watches users' error rate, p95 latency, and throughput every second, reverts the fault, and measures recovery. Results go to `runs/<run>/result.json`, and every action is logged in `runs/<run>/events.jsonl`.
+
+Runs also check owner `6` against visit IDs seen in the healthy baseline. This catches an HTTP `200` with missing visit data. The correctness check contributes to the watchdog and recovery decision; predictions and `matched`/`contradicted`/`unobserved` comparisons are stored in `result.json`. Action comparisons count requests completed during the fault phase, so an action without fault traffic remains unobserved. A checkpoint is written as soon as a fault is reverted, and the recovery window can be bounded with `--recovery-timeout`.
+
+In one local Visits crash test, the Gateway returned `200` with missing visits. HTTP errors and latency later normalized, but two baseline visit IDs were still absent, so the experiment correctly reported that full recovery had not occurred. The active datastore configuration and durability need verification before treating a service restart as data recovery.
 
 ### Safety controls
 

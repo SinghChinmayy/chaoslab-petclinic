@@ -30,6 +30,7 @@ class Sample:
     p95_ms: float | None
     stalled: bool                          # users active, yet nothing completed in the window
     action_errors: dict[str, float | None] = field(default_factory=dict)
+    semantic_correctness: str | None = None
 
 
 def error_rates(a: Snapshot, b: Snapshot) -> tuple[float | None, dict[str, float | None]]:

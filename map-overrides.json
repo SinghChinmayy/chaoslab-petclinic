@@ -2,8 +2,8 @@
   "_about": "Manual corrections to the automatically discovered dependency map. Each one says why it is needed.",
   "actions": {
     "owner details": {
-      "services": ["api-gateway", "customers-service", "customers-db", "visits-service", "visits-db"],
-      "reason": "ApiGatewayController calls customers-service and then visits-service with WebClient, but the trace context is lost on this path, so Zipkin only sees the gateway. Verified in ApiGatewayController.java."
+      "services": ["api-gateway", "customers-service", "visits-service"],
+      "reason": "ApiGatewayController calls customers-service and then visits-service with WebClient, but the trace context is lost on this path, so Zipkin only sees the gateway. Verified in ApiGatewayController.java. The active datastore behind each service is not established by this controller."
     }
   }
 }
