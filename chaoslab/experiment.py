@@ -1,0 +1,213 @@
+"""One chaos experiment: check steady state, inject, watch, revert, measure recovery."""
+
+import json
+import signal
+import statistics
+import time
+from dataclasses import asdict
+from pathlib import Path
+
+from . import depmap
+from .faults import Fault
+from .metrics import LocustProbe, Sample, error_rates
+from .safety import (Guardrails, SafetyError, active_faults, arm_dead_mans_switch,
+                     preflight, register, unregister)
+from .settings import ROOT, RUNS_DIR
+
+TICK_S = 1.0
+RECOVERY_HOLD_S = 10          # healthy this many seconds in a row counts as recovered
+MAX_BASELINE_ERROR = 0.05     # refuse to start unless the system is this healthy
+
+
+class EventLog:
+    """Prints progress and appends actions to the run's audit log."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.start = time.monotonic()
+
+    def elapsed(self) -> float:
+        return time.monotonic() - self.start
+
+    def show(self, message: str) -> None:
+        print(f"[{self.elapsed():6.1f}s] {message}", flush=True)
+
+    def __call__(self, kind: str, message: str, **data) -> None:
+        self.show(f"{kind.upper():<8} {message}")
+        record = {"time": time.time(), "elapsed": round(self.elapsed(), 1),
+                  "kind": kind, "message": message, **data}
+        with self.path.open("a") as f:
+            f.write(json.dumps(record) + "\n")
+
+
+def _fmt(s: Sample) -> str:
+    err = "  n/a" if s.error_rate is None else f"{s.error_rate:5.0%}"
+    p95 = "    n/a" if s.p95_ms is None else f"{s.p95_ms:5.0f}ms"
+    failing = sorted(n for n, e in s.action_errors.items() if e)
+    return (f"{s.phase:<8} rps {s.rps:4.1f}  errors {err}  p95 {p95}"
+            + (f"  failing: {', '.join(failing)}" if failing else ""))
+
+
+def _raise_interrupt(signum, frame):
+    raise KeyboardInterrupt
+
+
+def run(fault: Fault, guard: Guardrails, duration_s: int,
+        baseline_s: int = 20, recovery_timeout_s: int = 240) -> dict:
+    preflight(fault)
+    signal.signal(signal.SIGTERM, _raise_interrupt)
+
+    run_dir = RUNS_DIR / f"{time.strftime('%Y%m%d-%H%M%S')}-{fault.kind}-{fault.target}"
+    run_dir.mkdir(parents=True)
+    log = EventLog(run_dir / "events.jsonl")
+    probe = LocustProbe()
+    timeline: list[Sample] = []
+
+    def tick(phase: str) -> Sample:
+        time.sleep(TICK_S)
+        sample = probe.sample(log.elapsed(), phase)
+        timeline.append(sample)
+        return sample
+
+    def save(result: dict) -> dict:
+        result["timeline"] = [asdict(s) for s in timeline]
+        (run_dir / "result.json").write_text(json.dumps(result, indent=2))
+        log("saved", f"{(run_dir / 'result.json').relative_to(ROOT)}")
+        return result
+
+    log("start", f"{fault.describe()} for up to {duration_s}s",
+        fault=fault.to_dict(), guardrails=asdict(guard))
+
+    # 1. Steady state: only break a system that is healthy to begin with.
+    log("baseline", f"measuring steady state for {baseline_s}s")
+    first = probe.snapshot()
+    for _ in range(baseline_s):
+        log.show(_fmt(tick("baseline")))
+    last = probe.history[-1]
+    base_err, base_actions = error_rates(first, last)
+    p95s = [s.p95_ms for s in timeline if s.p95_ms is not None]
+    baseline = {
+        "rps": round((last.totals()[0] - first.totals()[0]) / (last.at - first.at), 2),
+        "error_rate": base_err,
+        "p95_ms": statistics.median(p95s) if p95s else None,
+        "action_error_rates": base_actions,
+    }
+    log("baseline", f"rps {baseline['rps']}  errors {(base_err or 0):.1%}  "
+                    f"p95 {baseline['p95_ms']}ms", **baseline)
+    problem = None
+    if baseline["rps"] < 0.5:
+        problem = "no user traffic; is the load generator running?"
+    elif base_err is None or base_err > MAX_BASELINE_ERROR:
+        problem = f"error rate {(base_err or 0):.1%} is above {MAX_BASELINE_ERROR:.0%}"
+    elif baseline["p95_ms"] is None or baseline["p95_ms"] > guard.max_p95_ms / 2:
+        problem = f"p95 {baseline['p95_ms']}ms is too close to the {guard.max_p95_ms:.0f}ms limit"
+    if problem:
+        log("refused", f"system is not in a steady state: {problem}")
+        save({"id": run_dir.name, "fault": fault.to_dict(), "outcome": "refused",
+              "abort_reason": problem, "baseline": baseline})
+        raise SafetyError(f"system is not in a steady state: {problem}")
+
+    # 2. Inject. Register first, so the kill switch knows about the fault even
+    #    if injection only half succeeds.
+    fault.prepare()
+    expires_at = time.time() + duration_s + guard.expiry_grace_s
+    register(fault, expires_at)
+    arm_dead_mans_switch(fault, expires_at)
+    log("safety", f"dead-man's switch armed: auto-revert {duration_s + guard.expiry_grace_s}s "
+                  "from now even if this process dies")
+    try:
+        fault.inject()
+    except Exception:
+        fault.revert()
+        unregister(fault.id)
+        raise
+    t_inject = log.elapsed()
+    snap_inject = probe.snapshot()
+    log("inject", fault.describe())
+
+    # 3. Observe under fault while the watchdog checks every sample.
+    outcome, reason, first_breach, streak = "completed", None, None, 0
+    deadline = time.monotonic() + duration_s
+    try:
+        while time.monotonic() < deadline:
+            sample = tick("fault")
+            if fault.id not in active_faults():
+                outcome, reason = "stopped", "reverted externally (kill switch or dead-man's switch)"
+                log("abort", reason)
+                break
+            why = guard.breach(sample, baseline["rps"])
+            streak = streak + 1 if why else 0
+            if why and first_breach is None:
+                first_breach = sample.elapsed
+            log.show(_fmt(sample) + (f"  <- breach {streak}/{guard.breach_seconds}: {why}" if why else ""))
+            if streak >= guard.breach_seconds:
+                outcome, reason = "aborted", f"watchdog: {why} for {streak}s in a row"
+                log("abort", reason)
+                break
+    except KeyboardInterrupt:
+        outcome, reason = "interrupted", "operator interrupt (Ctrl-C)"
+        log("abort", reason)
+    finally:
+        snap_revert = probe.snapshot()
+        if fault.id in active_faults():
+            fault.revert()
+            unregister(fault.id)
+        t_revert = log.elapsed()
+        log("revert", f"undone: {fault.describe()}")
+
+    # 4. Recovery: how long until users see normal service again?
+    recovered_at = None
+    if outcome != "interrupted":
+        limit_err = max((base_err or 0) + 0.02, 0.02)
+        base_p95 = baseline["p95_ms"]
+        limit_p95 = max(2 * base_p95, base_p95 + 100)
+        log("recovery", f"waiting for {RECOVERY_HOLD_S}s of normal service "
+                        f"(errors <= {limit_err:.0%}, p95 <= {limit_p95:.0f}ms), max {recovery_timeout_s}s")
+        healthy_since = None
+        give_up = time.monotonic() + recovery_timeout_s
+        while time.monotonic() < give_up:
+            sample = tick("recovery")
+            ok = (sample.error_rate is not None and sample.error_rate <= limit_err
+                  and (sample.p95_ms is None or sample.p95_ms <= limit_p95))
+            if not ok:
+                healthy_since = None
+            elif healthy_since is None:
+                healthy_since = sample.elapsed
+            log.show(_fmt(sample) + ("  ok" if ok else ""))
+            if healthy_since is not None and sample.elapsed - healthy_since >= RECOVERY_HOLD_S:
+                recovered_at = healthy_since
+                break
+        log("recovery", f"recovered {recovered_at - t_revert:.1f}s after revert"
+                        if recovered_at else f"NOT recovered within {recovery_timeout_s}s")
+
+    # 5. Summarise. Impact covers fault + recovery: requests that hung during
+    #    the fault often only fail after it has been undone.
+    snap_end = probe.history[-1] if outcome != "interrupted" else snap_revert
+    fault_err, fault_actions = error_rates(snap_inject, snap_end)
+    paths = depmap.action_services()  # None until `chaoslab map` has been run
+    impact = {
+        name: {"baseline_error_rate": base_actions.get(name),
+               "fault_error_rate": fault_actions.get(name),
+               "uses_target": fault.target in paths.get(name, set()) if paths else None}
+        for name in sorted(set(base_actions) | set(fault_actions))
+    }
+    collateral = [name for name, i in impact.items() if i["uses_target"] is False
+                  and (i["fault_error_rate"] or 0) - (i["baseline_error_rate"] or 0) > 0.10]
+    fault_samples = [s for s in timeline if s.phase in ("fault", "recovery")]
+    return save({
+        "id": run_dir.name,
+        "fault": fault.to_dict(),
+        "guardrails": asdict(guard),
+        "baseline": baseline,
+        "outcome": outcome,
+        "abort_reason": reason,
+        "fault_active_s": round(t_revert - t_inject, 1),
+        "time_to_first_breach_s": round(first_breach - t_inject, 1) if first_breach else None,
+        "error_rate_fault_and_recovery": fault_err,
+        "peak_error_rate": max((s.error_rate for s in fault_samples if s.error_rate is not None), default=None),
+        "peak_p95_ms": max((s.p95_ms for s in fault_samples if s.p95_ms is not None), default=None),
+        "recovered": recovered_at is not None,
+        "recovery_s": round(recovered_at - t_revert, 1) if recovered_at else None,
+        "impact_by_action": impact,
+        "collateral_actions": collateral,
+    })

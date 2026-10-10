@@ -3,6 +3,8 @@ services:
     image: springcommunity/spring-petclinic-config-server
     pull_policy: never  # built from this repo's source: make build
     container_name: config-server
+    labels:
+      chaoslab.target: "true"  # the chaos controller may fault this service
     deploy:
       resources:
         limits:
@@ -19,6 +21,8 @@ services:
     image: springcommunity/spring-petclinic-discovery-server
     pull_policy: never  # built from this repo's source: make build
     container_name: discovery-server
+    labels:
+      chaoslab.target: "true"  # the chaos controller may fault this service
     deploy:
       resources:
         limits:
@@ -38,6 +42,14 @@ services:
     image: springcommunity/spring-petclinic-customers-service
     pull_policy: never  # built from this repo's source: make build
     container_name: customers-service
+    labels:
+      chaoslab.target: "true"  # the chaos controller may fault this service
+    healthcheck:  # reports status only; nothing restarts on failure
+      test: ["CMD", "curl", "-fs", "http://localhost:8081/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -54,6 +66,14 @@ services:
     image: springcommunity/spring-petclinic-visits-service
     pull_policy: never  # built from this repo's source: make build
     container_name: visits-service
+    labels:
+      chaoslab.target: "true"  # the chaos controller may fault this service
+    healthcheck:  # reports status only; nothing restarts on failure
+      test: ["CMD", "curl", "-fs", "http://localhost:8082/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -70,6 +90,14 @@ services:
     image: springcommunity/spring-petclinic-vets-service
     pull_policy: never  # built from this repo's source: make build
     container_name: vets-service
+    labels:
+      chaoslab.target: "true"  # the chaos controller may fault this service
+    healthcheck:  # reports status only; nothing restarts on failure
+      test: ["CMD", "curl", "-fs", "http://localhost:8083/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -87,6 +115,8 @@ services:
     image: springcommunity/spring-petclinic-genai-service
     pull_policy: never  # built from this repo's source: make build
     container_name: genai-service
+    labels:
+      chaoslab.target: "true"  # the chaos controller may fault this service
     profiles:
       - genai
     environment:
@@ -110,6 +140,14 @@ services:
     image: springcommunity/spring-petclinic-api-gateway
     pull_policy: never  # built from this repo's source: make build
     container_name: api-gateway
+    labels:
+      chaoslab.target: "true"  # the chaos controller may fault this service
+    healthcheck:  # reports status only; nothing restarts on failure
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -122,7 +160,7 @@ services:
     ports:
      - 8080:8080
 
-  # Our own tooling (tracing, monitoring) restarts on failure; the app
+  # Our own tooling (tracing, monitoring, load) restarts on failure; the app
   # under test deliberately does not, so the chaos experiments can show it.
   tracing-server:
     image: openzipkin/zipkin:3.6.1
@@ -143,6 +181,8 @@ services:
     image: springcommunity/spring-petclinic-admin-server
     pull_policy: never  # built from this repo's source: make build
     container_name: admin-server
+    labels:
+      chaoslab.target: "true"  # the chaos controller may fault this service
     deploy:
       resources:
         limits:
@@ -215,3 +255,31 @@ services:
     ports:
     - 9091:9090
 
+  # Steady background traffic. The chaos controller changes the user count at
+  # runtime through Locust's web API (http://localhost:8089).
+  load-generator:
+    image: locustio/locust:2.46.6
+    container_name: load-generator
+    restart: unless-stopped
+    command: >
+      -f /mnt/locust/locustfile.py
+      --host http://api-gateway:8080
+      --users 10 --spawn-rate 2
+      --autostart
+    volumes:
+      - ../load:/mnt/locust:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+      customers-service:
+        condition: service_healthy
+      visits-service:
+        condition: service_healthy
+      vets-service:
+        condition: service_healthy
+    ports:
+      - 8089:8089

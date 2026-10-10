@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dependency map</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; color: #1f1f1f; background: #fff; }
+  .wrap { overflow-x: auto; margin: 8px 0 24px; }
+  table { border-collapse: collapse; font-size: 13px; }
+  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f3; }
+  .meta { color: #555; max-width: 900px; }
+</style></head><body>
+<h1>Dependency map</h1>
+<p class="meta">Generated 2026-10-10 13:48:18. Discovered automatically from Docker Compose, Eureka, Zipkin traces and Locust traffic. Thick orange borders mark critical services: on at least half of all user requests, or needed by two or more services to start. Dashed arrows are startup dependencies or manual corrections.</p>
+<pre class="mermaid">flowchart LR
+  users([&quot;Users (Locust)&quot;])
+  subgraph app[&quot;App services&quot;]
+    api_gateway[&quot;api-gateway&lt;br/&gt;100% of requests, 1 instance&quot;]
+    admin_server[&quot;admin-server&lt;br/&gt;0% of requests, 1 instance&quot;]
+    customers_service[&quot;customers-service&lt;br/&gt;64% of requests, 1 instance&quot;]
+    vets_service[&quot;vets-service&lt;br/&gt;28% of requests, 1 instance&quot;]
+    visits_service[&quot;visits-service&lt;br/&gt;39% of requests, 1 instance&quot;]
+  end
+  subgraph platform[&quot;Platform&quot;]
+    config_server[&quot;config-server&lt;br/&gt;0% of requests, 1 instance&quot;]
+    discovery_server[&quot;discovery-server&lt;br/&gt;0% of requests, 1 instance&quot;]
+  end
+  customers_db[(&quot;customers-db&lt;br/&gt;embedded in customers-service&quot;)]
+  vets_db[(&quot;vets-db&lt;br/&gt;embedded in vets-service&quot;)]
+  visits_db[(&quot;visits-db&lt;br/&gt;embedded in visits-service&quot;)]
+  users ==&gt; api_gateway
+  api_gateway --&gt;|&quot;88 calls&quot;| customers_service
+  api_gateway --&gt;|&quot;82 calls&quot;| vets_service
+  api_gateway --&gt;|&quot;22 calls&quot;| visits_service
+  customers_service --&gt;|&quot;1822 calls&quot;| customers_db
+  vets_service --&gt;|&quot;1200 calls&quot;| vets_db
+  visits_service --&gt;|&quot;355 calls&quot;| visits_db
+  discovery_server -.-&gt;|&quot;needs at startup&quot;| config_server
+  app -.-&gt;|&quot;needs at startup&quot;| platform
+  classDef critical stroke:#D85A30,stroke-width:3px
+  class api_gateway,config_server,customers_service,discovery_server,customers_db critical</pre>
+<h2>Services</h2><div class="wrap"><table><thead><tr><th>Service</th><th>Role</th><th>Share of user requests</th><th>Instances</th><th>Auto-restart</th><th>Needs at startup</th><th>Risk hints</th></tr></thead><tbody><tr><td>api-gateway</td><td>entry point</td><td>100%</td><td>1</td><td>no</td><td>config-server, discovery-server</td><td>single instance; no auto-restart; on 100% of user requests</td></tr><tr><td>customers-service</td><td>service</td><td>64%</td><td>1</td><td>no</td><td>config-server, discovery-server</td><td>single instance; no auto-restart; on 64% of user requests</td></tr><tr><td>customers-db</td><td>datastore</td><td>64%</td><td>1</td><td>n/a</td><td>-</td><td>embedded: fails and restarts together with customers-service; on 64% of user requests</td></tr><tr><td>visits-service</td><td>service</td><td>39%</td><td>1</td><td>no</td><td>config-server, discovery-server</td><td>single instance; no auto-restart</td></tr><tr><td>visits-db</td><td>datastore</td><td>39%</td><td>1</td><td>n/a</td><td>-</td><td>embedded: fails and restarts together with visits-service</td></tr><tr><td>vets-service</td><td>service</td><td>28%</td><td>1</td><td>no</td><td>config-server, discovery-server</td><td>single instance; no auto-restart</td></tr><tr><td>vets-db</td><td>datastore</td><td>28%</td><td>1</td><td>n/a</td><td>-</td><td>embedded: fails and restarts together with vets-service</td></tr><tr><td>admin-server</td><td>service</td><td>0%</td><td>1</td><td>no</td><td>config-server, discovery-server</td><td>single instance; no auto-restart</td></tr><tr><td>config-server</td><td>platform</td><td>0%</td><td>1</td><td>no</td><td>-</td><td>single instance; no auto-restart; 6 services need it to start</td></tr><tr><td>discovery-server</td><td>platform</td><td>0%</td><td>1</td><td>no</td><td>config-server</td><td>single instance; no auto-restart; 5 services need it to start</td></tr></tbody></table></div>
+<h2>User actions (data flows)</h2><div class="wrap"><table><thead><tr><th>User action</th><th>Route</th><th>Share of requests</th><th>Passes through</th><th>Source</th></tr></thead><tbody><tr><td>list owners</td><td>/api/customer/owners</td><td>26%</td><td>api-gateway -&gt; customers-db -&gt; customers-service</td><td>traces (65 traces)</td></tr><tr><td>owner details</td><td>/api/gateway/owners/\d+</td><td>31%</td><td>api-gateway -&gt; customers-db -&gt; customers-service -&gt; visits-db -&gt; visits-service</td><td>manual correction (152 traces)</td></tr><tr><td>list vets</td><td>/api/vet/vets</td><td>28%</td><td>api-gateway -&gt; vets-db -&gt; vets-service</td><td>traces (82 traces)</td></tr><tr><td>pet types</td><td>/api/customer/petTypes</td><td>8%</td><td>api-gateway -&gt; customers-db -&gt; customers-service</td><td>traces (23 traces)</td></tr><tr><td>add visit</td><td>/api/visit/owners/\d+/pets/\d+/visits</td><td>8%</td><td>api-gateway -&gt; visits-db -&gt; visits-service</td><td>traces (22 traces)</td></tr></tbody></table></div>
+<h2>Notes and manual corrections</h2><ul><li>&#x27;owner details&#x27;: traces only show api-gateway; added from map-overrides.json: ApiGatewayController calls customers-service and then visits-service with WebClient, but the trace context is lost on this path, so Zipkin only sees the gateway. Verified in ApiGatewayController.java.</li></ul>
+<h2>Sources</h2><ul><li><b>docker compose</b>: 11 containers, 7 app services</li><li><b>eureka</b>: 5 services registered</li><li><b>zipkin</b>: 705 traces and 6 call edges from the last 15 minutes</li><li><b>locust</b>: 183 user requests across 5 actions</li></ul>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, securityLevel: "strict" });</script>
+</body></html>

@@ -9,6 +9,10 @@ This file records meaningful, user-facing changes to the project. Detailed imple
 - Established a project change history and commit-tracking convention.
 - Added cAdvisor-backed per-container CPU, memory, and network metrics to Prometheus, with setup and verification guidance.
 - Added a project quick-start guide covering Docker Desktop setup, service startup, and monitoring verification.
+- Added a chaos controller with six failure types (crash, freeze, network delay, packet loss, CPU starvation, traffic spike), parameter limits, and an experiment flow that checks steady state, injects one fault, watches users every second, reverts, and measures recovery.
+- Added safety controls: a target allowlist, a watchdog that aborts on error rate, latency, or throughput limits, a kill switch, and a dead-man's switch that reverts faults even if the controller dies.
+- Added an automatic dependency map built from Docker Compose, Docker, Eureka, Zipkin traces, and live traffic, with manual corrections for paths the traces cannot see.
+- Added a Locust load generator for steady simulated user traffic, and health checks for the gateway and business services.
 - Added a root Makefile for building, starting, and stopping the sandbox.
 
 ### Changed

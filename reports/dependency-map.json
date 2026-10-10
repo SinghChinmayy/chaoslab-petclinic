@@ -1,0 +1,463 @@
+{
+  "generated_at": "2026-10-10 13:48:18",
+  "entry_point": "api-gateway",
+  "load_generator": "load-generator",
+  "sources": {
+    "docker compose": "11 containers, 7 app services",
+    "eureka": "5 services registered",
+    "zipkin": "705 traces and 6 call edges from the last 15 minutes",
+    "locust": "183 user requests across 5 actions"
+  },
+  "warnings": [
+    "'owner details': traces only show api-gateway; added from map-overrides.json: ApiGatewayController calls customers-service and then visits-service with WebClient, but the trace context is lost on this path, so Zipkin only sees the gateway. Verified in ApiGatewayController.java."
+  ],
+  "nodes": [
+    {
+      "id": "admin-server",
+      "role": "service",
+      "kind": "container",
+      "instances": 1,
+      "registered_in_eureka": 1,
+      "auto_restart": false,
+      "needs_at_startup": [
+        "config-server",
+        "discovery-server"
+      ],
+      "needed_at_startup_by": [],
+      "user_actions": [],
+      "share_of_requests": 0,
+      "callers": [],
+      "calls": [],
+      "risk_hints": [
+        "single instance",
+        "no auto-restart"
+      ],
+      "critical": false
+    },
+    {
+      "id": "api-gateway",
+      "role": "entry point",
+      "kind": "container",
+      "instances": 1,
+      "registered_in_eureka": 1,
+      "auto_restart": false,
+      "needs_at_startup": [
+        "config-server",
+        "discovery-server"
+      ],
+      "needed_at_startup_by": [],
+      "user_actions": [
+        "list owners",
+        "owner details",
+        "list vets",
+        "pet types",
+        "add visit"
+      ],
+      "share_of_requests": 1.001,
+      "callers": [],
+      "calls": [
+        "customers-service",
+        "vets-service",
+        "visits-service"
+      ],
+      "risk_hints": [
+        "single instance",
+        "no auto-restart",
+        "on 100% of user requests"
+      ],
+      "critical": true
+    },
+    {
+      "id": "config-server",
+      "role": "platform",
+      "kind": "container",
+      "instances": 1,
+      "registered_in_eureka": 0,
+      "auto_restart": false,
+      "needs_at_startup": [],
+      "needed_at_startup_by": [
+        "admin-server",
+        "api-gateway",
+        "customers-service",
+        "discovery-server",
+        "vets-service",
+        "visits-service"
+      ],
+      "user_actions": [],
+      "share_of_requests": 0,
+      "callers": [],
+      "calls": [],
+      "risk_hints": [
+        "single instance",
+        "no auto-restart",
+        "6 services need it to start"
+      ],
+      "critical": true
+    },
+    {
+      "id": "customers-service",
+      "role": "service",
+      "kind": "container",
+      "instances": 1,
+      "registered_in_eureka": 1,
+      "auto_restart": false,
+      "needs_at_startup": [
+        "config-server",
+        "discovery-server"
+      ],
+      "needed_at_startup_by": [],
+      "user_actions": [
+        "list owners",
+        "owner details",
+        "pet types"
+      ],
+      "share_of_requests": 0.645,
+      "callers": [
+        "api-gateway"
+      ],
+      "calls": [
+        "customers-db"
+      ],
+      "risk_hints": [
+        "single instance",
+        "no auto-restart",
+        "on 64% of user requests"
+      ],
+      "critical": true
+    },
+    {
+      "id": "discovery-server",
+      "role": "platform",
+      "kind": "container",
+      "instances": 1,
+      "registered_in_eureka": 0,
+      "auto_restart": false,
+      "needs_at_startup": [
+        "config-server"
+      ],
+      "needed_at_startup_by": [
+        "admin-server",
+        "api-gateway",
+        "customers-service",
+        "vets-service",
+        "visits-service"
+      ],
+      "user_actions": [],
+      "share_of_requests": 0,
+      "callers": [],
+      "calls": [],
+      "risk_hints": [
+        "single instance",
+        "no auto-restart",
+        "5 services need it to start"
+      ],
+      "critical": true
+    },
+    {
+      "id": "vets-service",
+      "role": "service",
+      "kind": "container",
+      "instances": 1,
+      "registered_in_eureka": 1,
+      "auto_restart": false,
+      "needs_at_startup": [
+        "config-server",
+        "discovery-server"
+      ],
+      "needed_at_startup_by": [],
+      "user_actions": [
+        "list vets"
+      ],
+      "share_of_requests": 0.279,
+      "callers": [
+        "api-gateway"
+      ],
+      "calls": [
+        "vets-db"
+      ],
+      "risk_hints": [
+        "single instance",
+        "no auto-restart"
+      ],
+      "critical": false
+    },
+    {
+      "id": "visits-service",
+      "role": "service",
+      "kind": "container",
+      "instances": 1,
+      "registered_in_eureka": 1,
+      "auto_restart": false,
+      "needs_at_startup": [
+        "config-server",
+        "discovery-server"
+      ],
+      "needed_at_startup_by": [],
+      "user_actions": [
+        "owner details",
+        "add visit"
+      ],
+      "share_of_requests": 0.388,
+      "callers": [
+        "api-gateway"
+      ],
+      "calls": [
+        "visits-db"
+      ],
+      "risk_hints": [
+        "single instance",
+        "no auto-restart"
+      ],
+      "critical": false
+    },
+    {
+      "id": "customers-db",
+      "role": "datastore",
+      "kind": "embedded in customers-service",
+      "instances": 1,
+      "inside": "customers-service",
+      "user_actions": [
+        "list owners",
+        "owner details",
+        "pet types"
+      ],
+      "share_of_requests": 0.645,
+      "callers": [
+        "customers-service"
+      ],
+      "calls": [],
+      "risk_hints": [
+        "embedded: fails and restarts together with customers-service",
+        "on 64% of user requests"
+      ],
+      "critical": true
+    },
+    {
+      "id": "vets-db",
+      "role": "datastore",
+      "kind": "embedded in vets-service",
+      "instances": 1,
+      "inside": "vets-service",
+      "user_actions": [
+        "list vets"
+      ],
+      "share_of_requests": 0.279,
+      "callers": [
+        "vets-service"
+      ],
+      "calls": [],
+      "risk_hints": [
+        "embedded: fails and restarts together with vets-service"
+      ],
+      "critical": false
+    },
+    {
+      "id": "visits-db",
+      "role": "datastore",
+      "kind": "embedded in visits-service",
+      "instances": 1,
+      "inside": "visits-service",
+      "user_actions": [
+        "owner details",
+        "add visit"
+      ],
+      "share_of_requests": 0.388,
+      "callers": [
+        "visits-service"
+      ],
+      "calls": [],
+      "risk_hints": [
+        "embedded: fails and restarts together with visits-service"
+      ],
+      "critical": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "users",
+      "to": "api-gateway",
+      "type": "traffic",
+      "source": "locust"
+    },
+    {
+      "from": "api-gateway",
+      "to": "customers-service",
+      "type": "calls",
+      "calls": 88,
+      "errors": 0,
+      "source": "zipkin"
+    },
+    {
+      "from": "api-gateway",
+      "to": "vets-service",
+      "type": "calls",
+      "calls": 82,
+      "errors": 0,
+      "source": "zipkin"
+    },
+    {
+      "from": "api-gateway",
+      "to": "visits-service",
+      "type": "calls",
+      "calls": 22,
+      "errors": 0,
+      "source": "zipkin"
+    },
+    {
+      "from": "customers-service",
+      "to": "customers-db",
+      "type": "calls",
+      "calls": 1822,
+      "errors": 0,
+      "source": "zipkin"
+    },
+    {
+      "from": "vets-service",
+      "to": "vets-db",
+      "type": "calls",
+      "calls": 1200,
+      "errors": 0,
+      "source": "zipkin"
+    },
+    {
+      "from": "visits-service",
+      "to": "visits-db",
+      "type": "calls",
+      "calls": 355,
+      "errors": 0,
+      "source": "zipkin"
+    },
+    {
+      "from": "admin-server",
+      "to": "config-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    },
+    {
+      "from": "admin-server",
+      "to": "discovery-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    },
+    {
+      "from": "api-gateway",
+      "to": "config-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    },
+    {
+      "from": "api-gateway",
+      "to": "discovery-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    },
+    {
+      "from": "customers-service",
+      "to": "config-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    },
+    {
+      "from": "customers-service",
+      "to": "discovery-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    },
+    {
+      "from": "discovery-server",
+      "to": "config-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    },
+    {
+      "from": "vets-service",
+      "to": "config-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    },
+    {
+      "from": "vets-service",
+      "to": "discovery-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    },
+    {
+      "from": "visits-service",
+      "to": "config-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    },
+    {
+      "from": "visits-service",
+      "to": "discovery-server",
+      "type": "needs at startup",
+      "source": "docker compose"
+    }
+  ],
+  "user_actions": {
+    "list owners": {
+      "route": "/api/customer/owners",
+      "services": [
+        "api-gateway",
+        "customers-db",
+        "customers-service"
+      ],
+      "traces": 65,
+      "source": "traces",
+      "share_of_requests": 0.257
+    },
+    "owner details": {
+      "route": "/api/gateway/owners/\\d+",
+      "services": [
+        "api-gateway",
+        "customers-db",
+        "customers-service",
+        "visits-db",
+        "visits-service"
+      ],
+      "traces": 152,
+      "source": "manual correction",
+      "reason": "ApiGatewayController calls customers-service and then visits-service with WebClient, but the trace context is lost on this path, so Zipkin only sees the gateway. Verified in ApiGatewayController.java.",
+      "share_of_requests": 0.311
+    },
+    "list vets": {
+      "route": "/api/vet/vets",
+      "services": [
+        "api-gateway",
+        "vets-db",
+        "vets-service"
+      ],
+      "traces": 82,
+      "source": "traces",
+      "share_of_requests": 0.279
+    },
+    "pet types": {
+      "route": "/api/customer/petTypes",
+      "services": [
+        "api-gateway",
+        "customers-db",
+        "customers-service"
+      ],
+      "traces": 23,
+      "source": "traces",
+      "share_of_requests": 0.077
+    },
+    "add visit": {
+      "route": "/api/visit/owners/\\d+/pets/\\d+/visits",
+      "services": [
+        "api-gateway",
+        "visits-db",
+        "visits-service"
+      ],
+      "traces": 22,
+      "source": "traces",
+      "share_of_requests": 0.077
+    }
+  },
+  "not_mapped": [
+    "grafana-server",
+    "load-generator",
+    "prometheus-server",
+    "tracing-server"
+  ]
+}

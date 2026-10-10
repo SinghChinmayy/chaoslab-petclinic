@@ -1,12 +1,15 @@
 # PetClinic chaos engineering prototype
 
-This repository contains a local Spring PetClinic microservices environment for controlled chaos-engineering experiments. The application, Prometheus, Grafana, Zipkin, and optionally cAdvisor run through Docker Compose. The optional GenAI service is disabled by default, so an OpenAI or Azure OpenAI API key is not required.
+This repository contains a local Spring PetClinic microservices environment for controlled chaos-engineering experiments. The application, Prometheus, Grafana, Zipkin, a Locust load generator, and optionally cAdvisor run through Docker Compose. The optional GenAI service is disabled by default, so an OpenAI or Azure OpenAI API key is not required.
+
+The chaos controller (`chaoslab`) maps the application's dependencies and injects controlled failures behind several safety layers. An AI planner and analysis agent build on it next; see [AGENTS.md](AGENTS.md).
 
 ## Requirements
 
 - Docker Desktop with at least 8 GB of memory
 - Docker Compose
 - JDK 17 or newer, to build the PetClinic images from source
+- Python 3.11 or newer, for the chaos controller
 - `curl` and `jq` for the verification commands
 - Internet access at startup: the config server reads its settings from GitHub
 
@@ -44,6 +47,7 @@ docker compose --profile genai up -d
 | Prometheus | <http://localhost:9091> |
 | Grafana | <http://localhost:3030> |
 | Spring Boot Admin | <http://localhost:9090> |
+| Locust (load generator) | <http://localhost:8089> |
 | cAdvisor (optional) | <http://localhost:8085> |
 
 ## Verify monitoring
@@ -67,7 +71,7 @@ curl -fsS http://localhost:8080/api/gateway/owners/6 \
   | jq '{id, name: (.firstName + " " + .lastName), visits: [.pets[].visits[]?] | length}'
 ```
 
-The sample data should return owner `6` with four visits.
+The sample data gives owner `6` four visits. The load generator records new visits continuously, so expect at least four.
 
 ## Container metrics
 
@@ -86,3 +90,37 @@ A value of `1` means one full CPU core, while `0.25` means one quarter of a core
 
 See the [container resource monitoring guide](spring-petclinic-microservices/docs/container-resource-monitoring.md) for memory and network queries. See the [PetClinic README](spring-petclinic-microservices/README.md) for complete application documentation.
 
+## Dependency map
+
+```bash
+python3 -m chaoslab map     # writes reports/dependency-map.{json,md,html}
+```
+
+The map is built from Docker Compose (startup dependencies), Docker and Eureka (running and registered instances), Zipkin traces (runtime calls and the services each user action passes through), and Locust (share of user traffic per service). Only successful requests are used to learn paths. Gaps the traces cannot see are filled from [map-overrides.json](map-overrides.json), each with a reason. The map flags critical services and risk hints such as a single instance, no automatic restart, or being needed by other services at startup.
+
+## Chaos experiments
+
+```bash
+python3 -m chaoslab faults                                    # the failure menu and its limits
+python3 -m chaoslab targets                                   # containers that may be faulted
+python3 -m chaoslab run kill customers-service                # crash
+python3 -m chaoslab run pause vets-service                    # freeze (hung process)
+python3 -m chaoslab run delay visits-service --delay-ms 600   # slow network
+python3 -m chaoslab run loss visits-service --loss-pct 30     # lossy network (100 = cut off)
+python3 -m chaoslab run cpu customers-service --cpus 0.1      # CPU starvation
+python3 -m chaoslab run spike api-gateway --multiplier 5      # traffic spike
+python3 -m chaoslab status                                    # active faults
+python3 -m chaoslab stop                                      # kill switch (or: make kill-switch)
+```
+
+Each run measures a baseline, refuses to start unless the system is in a steady state, injects one fault, watches users' error rate, p95 latency, and throughput every second, reverts the fault, and measures recovery. Results go to `runs/<run>/result.json`, and every action is logged in `runs/<run>/events.jsonl`.
+
+### Safety controls
+
+Any one of these stops a fault:
+
+1. **Allowlist**: only services labelled `chaoslab.target=true` can be faulted; monitoring and the load generator never can. Every failure type has hard parameter limits.
+2. **Watchdog**: aborts after 3 s above 25% errors, 2 s p95 latency, or below 30% of normal throughput.
+3. **Time limit**: every fault is reverted at its planned end (at most 300 s).
+4. **Kill switch**: `python3 -m chaoslab stop` from any terminal reverts everything and restores the sandbox.
+5. **Dead-man's switch**: a detached process reverts the fault 30 s after its planned end, even if the controller crashed.
