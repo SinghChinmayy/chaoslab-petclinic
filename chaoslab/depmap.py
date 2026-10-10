@@ -36,10 +36,33 @@ def _datastore(service: str) -> str:
     return f"{service.removesuffix('-service')}-db"
 
 
-def _trace_child(parent: str, child: str, containers: set[str]) -> str:
+def _is_jdbc(span: dict) -> bool:
+    """A client span instrumented by a JDBC datasource proxy (it carries jdbc.* tags)."""
+    return any(key.startswith("jdbc.") for key in span.get("tags", {}))
+
+
+def _jdbc_calls(traces: list) -> dict[tuple[str, str], str]:
+    """(service, remote name) of JDBC client spans, mapped to the driver they report.
+
+    The remote name of such a span is a schema (HSQLDB's default is PUBLIC), so
+    the same name seen from several services is several databases, not one.
+    """
+    found = {}
+    for trace in traces:
+        for span in trace:
+            if span.get("kind") == "CLIENT" and _is_jdbc(span):
+                local = span.get("localEndpoint", {}).get("serviceName")
+                remote = (span.get("remoteEndpoint") or {}).get("serviceName")
+                found[local, remote] = span["tags"].get("jdbc.datasource.driver", "unknown driver")
+    return found
+
+
+def _trace_child(parent: str, child: str, containers: set[str],
+                 jdbc: dict[tuple[str, str], str] | None = None) -> str:
     if child in containers:
         return child
-    if parent and re.search(r"mysql|postgres|hsql|h2|jdbc|database", child, re.IGNORECASE):
+    if parent and ((parent, child) in (jdbc or {})
+                   or re.search(r"mysql|postgres|hsql|h2|jdbc|database", child, re.IGNORECASE)):
         return _datastore(parent)
     return child
 
@@ -67,7 +90,9 @@ def _paths_from_traces(traces: list, containers: set[str]) -> dict[str, dict]:
             local = span.get("localEndpoint", {}).get("serviceName")
             remote = (span.get("remoteEndpoint") or {}).get("serviceName")
             services.add(local)
-            if span.get("kind") == "CLIENT" and remote:
+            if span.get("kind") == "CLIENT" and local and _is_jdbc(span):
+                services.add(_datastore(local))
+            elif span.get("kind") == "CLIENT" and remote:
                 services.add(_trace_child(local, remote, containers))
         seen[action].update(services - {None})
     # Keep services present in at least half of an action's traces, ignoring odd partial ones.
@@ -153,14 +178,17 @@ def build() -> dict:
     calls: Counter = Counter()
     errors: Counter = Counter()
     traced: dict[str, dict] = {}
+    jdbc: dict[tuple[str, str], str] = {}
     try:
-        for dep in _get_json(f"{ZIPKIN_URL}/api/v2/dependencies?endTs={now_ms}&lookback={LOOKBACK_MS}"):
-            parent = dep["parent"]
-            child = _trace_child(parent, dep["child"], set(all_compose))
-            calls[parent, child] += dep["callCount"]
-            errors[parent, child] += dep.get("errorCount", 0)
+        # Traces first: their JDBC tags tell which remote names are databases.
         traces = _get_json(f"{ZIPKIN_URL}/api/v2/traces?serviceName={entry}"
                            f"&limit={MAX_TRACES}&lookback={LOOKBACK_MS}&endTs={now_ms}")
+        jdbc = _jdbc_calls(traces)
+        for dep in _get_json(f"{ZIPKIN_URL}/api/v2/dependencies?endTs={now_ms}&lookback={LOOKBACK_MS}"):
+            parent = dep["parent"]
+            child = _trace_child(parent, dep["child"], set(all_compose), jdbc)
+            calls[parent, child] += dep["callCount"]
+            errors[parent, child] += dep.get("errorCount", 0)
         traced = _paths_from_traces(traces, set(compose))
         sources["zipkin"] = (f"{len(traces)} traces and {len(calls)} call edges "
                              f"from the last {LOOKBACK_MS // 60000} minutes")
@@ -218,6 +246,12 @@ def build() -> dict:
             nodes[child] = {"id": child, "role": "datastore" if datastore else "external",
                             "kind": f"embedded in {parent}" if datastore else "observed endpoint",
                             "instances": None, **({"inside": parent} if datastore else {})}
+    # JDBC spans prove an in-process database even when they name no remote endpoint.
+    for (service, _), driver in jdbc.items():
+        if service in nodes:
+            nodes.setdefault(_datastore(service), {
+                "id": _datastore(service), "role": "datastore", "kind": f"embedded in {service}",
+                "instances": None, "inside": service})["jdbc_driver"] = driver
     for node in nodes.values():
         on = [a for a, action in actions.items() if node["id"] in action["services"]]
         node["user_actions"] = on
@@ -359,7 +393,7 @@ def _rows(m: dict) -> tuple[list[list[str]], list[list[str]]]:
     services = [[n["id"], n["role"],
                  f"{n['share_of_requests']:.0%}" if n.get("share_of_requests") is not None else "unknown",
                  str(n["instances"]) if n.get("instances") is not None else "unknown",
-                 "n/a" if n["role"] == "datastore" else ("yes" if n["auto_restart"] else "no"),
+                 "n/a" if n["role"] in ("datastore", "external") else ("yes" if n["auto_restart"] else "no"),
                  ", ".join(n.get("needs_at_startup", [])) or "-",
                  "; ".join(n["risk_hints"]) or "-"]
                 for n in sorted(m["nodes"], key=lambda n: -(n.get("share_of_requests") or 0))]

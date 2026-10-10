@@ -50,7 +50,12 @@ def enrich(base: dict, active_services: set[str], source_state: dict,
         node["verification"] = "inferred" if node.get("role") in ("datastore", "external") else "verified"
         node["evidence"] = [_evidence("compose", "spring-petclinic-microservices/docker-compose.yml",
                                       "Declared Compose service")]
-        if node.get("role") == "datastore":
+        if node.get("role") == "datastore" and node.get("jdbc_driver"):
+            node["verification"] = "verified"
+            node["evidence"] = [_evidence("zipkin", "Zipkin trace spans (jdbc.datasource.driver tag)",
+                                          f"JDBC calls from {node['inside']} use {node['jdbc_driver']}",
+                                          source_state.get("zipkin", {}).get("observed_at"))]
+        elif node.get("role") == "datastore":
             node["evidence"] = [_evidence("trace_inference", "chaoslab/depmap.py#_datastore",
                                           "Synthetic datastore name; active datasource is unverified")]
         elif node.get("role") == "external":
@@ -167,8 +172,10 @@ def enrich(base: dict, active_services: set[str], source_state: dict,
         dependencies.append({
             "id": f"persistence:{service}", "consumer": service, "provider": database,
             "feature": None, "purpose": "persistence", "interaction": "in_process_resource",
-            "phases": ["runtime"], "requirement": "unknown", "verification": "inferred",
-                "effects": {}, "evidence": nodes[database]["evidence"],
+            "phases": ["runtime"], "requirement": "unknown",
+            # Observed JDBC calls verify the relationship, not what depends on it.
+            "verification": nodes[database]["verification"],
+            "effects": {}, "evidence": list(nodes[database]["evidence"]),
         })
 
     # Zipkin adds evidence to declared edges. An undeclared call is connectivity

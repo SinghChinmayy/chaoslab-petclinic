@@ -29,6 +29,7 @@ This file records meaningful, user-facing changes to the project. Detailed imple
 
 ### Fixed
 
+- The dependency map report no longer fails when traces show an endpoint outside Compose, and each service's database calls now map to its own embedded HSQLDB, verified by JDBC trace tags, instead of one shared "public" endpoint.
 - cAdvisor failed to start on newer Docker engines because of how the Docker socket was mounted.
 - Zipkin ran out of memory after about 30 minutes; its in-memory trace storage is now capped.
 

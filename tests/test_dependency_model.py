@@ -11,6 +11,49 @@ class DependencyModelTest(unittest.TestCase):
         self.assertEqual(depmap._trace_child("customers-service", "payments-api", set()), "payments-api")
         self.assertEqual(depmap._trace_child("customers-service", "mysql", set()), "customers-db")
 
+    def test_jdbc_schema_name_maps_to_each_services_own_database(self):
+        driver = "org.hsqldb.jdbc.JDBCDriver"
+        root = {"id": "1", "tags": {"outcome": "SUCCESS", "http.url": "/api/vet/vets"},
+                "localEndpoint": {"serviceName": "api-gateway"}}
+        jdbc_span = {"id": "2", "parentId": "1", "kind": "CLIENT",
+                     "localEndpoint": {"serviceName": "customers-service"},
+                     "remoteEndpoint": {"serviceName": "public"},
+                     "tags": {"jdbc.datasource.driver": driver, "jdbc.datasource.name": "PUBLIC"}}
+        unnamed_jdbc_span = {"id": "3", "parentId": "1", "kind": "CLIENT",
+                             "localEndpoint": {"serviceName": "vets-service"},
+                             "tags": {"jdbc.datasource.driver": driver}}
+        jdbc = depmap._jdbc_calls([[root, jdbc_span, unnamed_jdbc_span]])
+        self.assertEqual(jdbc[("customers-service", "public")], driver)
+        # The same schema name from two services is two databases, not one shared endpoint.
+        self.assertEqual(depmap._trace_child("customers-service", "public", set(), jdbc), "customers-db")
+        self.assertEqual(depmap._trace_child("visits-service", "public", set(),
+                                             {("visits-service", "public"): driver}), "visits-db")
+        # Without JDBC evidence an unfamiliar name stays an unknown endpoint.
+        self.assertEqual(depmap._trace_child("customers-service", "public", set()), "public")
+        paths = depmap._paths_from_traces([[root, unnamed_jdbc_span]], set())
+        self.assertIn("vets-db", paths["list vets"]["services"])
+
+    def test_report_renders_external_endpoints_and_verified_databases(self):
+        names = ("api-gateway", "customers-service", "visits-service", "vets-service",
+                 "config-server", "discovery-server", "admin-server", "genai-service")
+        nodes = [{"id": n, "role": "service", "kind": "container", "instances": 1,
+                  "auto_restart": False, "risk_hints": []} for n in names]
+        nodes += [{"id": "payments-api", "role": "external", "kind": "observed endpoint",
+                   "instances": None, "risk_hints": []},
+                  {"id": "customers-db", "role": "datastore", "kind": "embedded in customers-service",
+                   "inside": "customers-service", "instances": None, "risk_hints": [],
+                   "jdbc_driver": "org.hsqldb.jdbc.JDBCDriver"}]
+        base = {"generated_at": "now", "entry_point": "api-gateway", "nodes": nodes,
+                "edges": [], "user_actions": {}, "warnings": [], "sources": {}, "not_mapped": []}
+        snapshot = enrich(base, active_services=set(names) - {"genai-service"}, source_state={})
+        database = next(n for n in snapshot["nodes"] if n["id"] == "customers-db")
+        self.assertEqual(database["verification"], "verified")
+        self.assertIn("org.hsqldb.jdbc.JDBCDriver", database["evidence"][0]["detail"])
+        persistence = next(d for d in snapshot["dependencies"] if d["id"] == "persistence:customers-service")
+        self.assertEqual(persistence["verification"], "verified")
+        self.assertIn("payments-api", depmap.markdown(snapshot))
+        self.assertIn("payments-api", depmap.html_page(snapshot))
+
     def test_map_retains_static_dependencies_when_runtime_sources_fail(self):
         names = ("config-server", "discovery-server", "api-gateway", "customers-service",
                  "visits-service", "vets-service", "admin-server", "load-generator")
