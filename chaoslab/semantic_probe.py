@@ -1,12 +1,24 @@
-"""Check owner-details response content, including successful but incomplete 200s."""
+"""Check owner-details response content, including successful but incomplete 200s.
+
+Correctness of one probe, against the visit IDs owner 6 had before the fault:
+  preserved    every expected visit is present
+  degraded     no visits at all: the gateway's circuit-breaker fallback answered
+  data_lost    visits are served but some expected ones are gone for good
+               (the visits fallback is all-or-nothing, so a partial list means
+               the store itself lost them, e.g. an in-memory database restarted)
+  unavailable  an error or no answer
+"""
 
 import json
 import time
-from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
+from datetime import date
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 OWNER_ID = 6
 OWNER_URL = f"http://localhost:8080/api/gateway/owners/{OWNER_ID}"
+CANARY_PET_ID = 7          # one of owner 6's pets
+CANARY_URL = f"http://localhost:8080/api/visit/owners/{OWNER_ID}/pets/{CANARY_PET_ID}/visits"
 MIN_ACTION_REQUESTS = 3   # fewer finished requests cannot confirm or contradict a prediction
 
 
@@ -23,7 +35,7 @@ def check(expected_ids: set[int] | None = None, url: str = OWNER_URL, timeout_s:
             owner = json.load(response)
         ids = visit_ids(owner)
         missing = sorted(expected_ids - ids) if expected_ids is not None else []
-        correctness = "degraded" if missing else "preserved"
+        correctness = "preserved" if not missing else "data_lost" if ids else "degraded"
         return {"status": status, "latency_ms": round((time.monotonic() - started) * 1000),
                 "visit_ids": sorted(ids), "missing_visit_ids": missing,
                 "correctness": correctness}
@@ -31,10 +43,28 @@ def check(expected_ids: set[int] | None = None, url: str = OWNER_URL, timeout_s:
         return {"status": err.code, "latency_ms": round((time.monotonic() - started) * 1000),
                 "visit_ids": [], "missing_visit_ids": sorted(expected_ids or []),
                 "correctness": "unavailable"}
-    except (URLError, TimeoutError, ValueError, KeyError, TypeError) as err:
+    # OSError also covers connection resets, which faults cause; an uncaught one
+    # would end the probe thread silently.
+    except (OSError, ValueError, KeyError, TypeError) as err:
         return {"status": None, "latency_ms": round((time.monotonic() - started) * 1000),
                 "visit_ids": [], "missing_visit_ids": sorted(expected_ids or []),
                 "correctness": "unavailable", "error": str(err)}
+
+
+def add_canary(label: str, url: str = CANARY_URL) -> int:
+    """Write one visit to owner 6 and return its ID.
+
+    A write acknowledged before a fault must survive it; checking this visit
+    afterwards is how the run detects lost data.
+    """
+    body = json.dumps({"date": date.today().isoformat(),
+                       "description": f"chaoslab canary {label}"}).encode()
+    request = Request(url, data=body, method="POST", headers={"Content-Type": "application/json"})
+    try:
+        with urlopen(request, timeout=5) as response:
+            return int(json.load(response)["id"])
+    except (OSError, ValueError, KeyError, TypeError) as err:  # OSError covers HTTP and URL errors
+        raise ValueError(f"could not write the canary visit: {err}") from err
 
 
 def baseline(url: str = OWNER_URL) -> dict:
@@ -68,7 +98,7 @@ def compare(prediction: dict | None, observations: list[dict],
         if name == "owner details" and fault_probes:
             values = {item["correctness"] for item in fault_probes}
             observed = ("unavailable" if "unavailable" in values else
-                        "degraded" if "degraded" in values else "preserved")
+                        "degraded" if values & {"degraded", "data_lost"} else "preserved")
         elif action_observations.get(name, {}).get("request_count", 0) >= MIN_ACTION_REQUESTS:
             rate = action_observations[name]["error_rate"]
             observed = "unavailable" if rate > 0.1 else "preserved"

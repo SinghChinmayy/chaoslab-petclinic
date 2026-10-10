@@ -37,7 +37,7 @@ class Guardrails:
 
     def breach(self, sample, baseline_rps: float) -> str | None:
         """Why a sample breaks the limits, or None when it is within them."""
-        if sample.semantic_correctness in ("degraded", "unavailable"):
+        if sample.semantic_correctness in ("degraded", "data_lost", "unavailable"):
             return f"owner details correctness {sample.semantic_correctness}"
         if sample.stalled:
             return "no requests completing"

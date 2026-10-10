@@ -45,7 +45,11 @@ def print_summary(r: dict) -> None:
     print("Recovery           " + (f"{r['recovery_s']}s after the fault was undone"
                                    if r["recovered"] else "NOT recovered in time"))
     semantic = r.get("semantic_recovery")
-    if semantic and semantic["correctness"] != "preserved":
+    if r.get("data_loss"):
+        loss = r["data_loss"]
+        print(f"Data loss          {len(loss['missing_visit_ids'])} visits written before the fault are gone "
+              f"(canary visit {loss['canary_visit_id']} lost: {'yes' if loss['canary_lost'] else 'no'})")
+    elif semantic and semantic["correctness"] != "preserved":
         print(f"Response data      {semantic['correctness']}; missing baseline visit IDs: "
               f"{semantic['missing_visit_ids']}")
     print("\nImpact by user action          baseline  fault+recovery")

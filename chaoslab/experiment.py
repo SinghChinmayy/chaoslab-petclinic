@@ -166,10 +166,15 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         raise SafetyError(f"system is not in a steady state: {problem}")
 
     try:
+        canary_id = semantic_probe.add_canary(run_dir.name)
         semantic_baseline = semantic_probe.baseline()
         expected_visit_ids = set(semantic_baseline["visit_ids"])
+        if canary_id not in expected_visit_ids:
+            raise ValueError(f"canary visit {canary_id} is not visible on owner {semantic_probe.OWNER_ID}")
+        semantic_baseline["canary_visit_id"] = canary_id
         baseline["owner_details"] = semantic_baseline
-        log("baseline", f"owner {semantic_probe.OWNER_ID} has {len(expected_visit_ids)} visits",
+        log("baseline", f"owner {semantic_probe.OWNER_ID} has {len(expected_visit_ids)} visits, "
+                        f"including canary visit {canary_id} written for this run",
             owner_details=semantic_baseline)
     except ValueError as err:
         reason = f"semantic baseline unavailable: {err}"
@@ -244,7 +249,9 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         give_up = time.monotonic() + recovery_timeout_s
         while time.monotonic() < give_up:
             sample = tick("recovery")
-            ok = (sample.semantic_correctness == "preserved"
+            # Lost data never comes back, so service that is answering normally
+            # counts as recovered; the loss itself is reported below.
+            ok = (sample.semantic_correctness in ("preserved", "data_lost")
                   and sample.error_rate is not None and sample.error_rate <= limit_err
                   and (sample.p95_ms is None or sample.p95_ms <= limit_p95))
             if not ok:
@@ -257,6 +264,19 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
                 break
         log("recovery", f"recovered {recovered_at - t_revert:.1f}s after revert"
                         if recovered_at else f"NOT recovered within {recovery_timeout_s}s")
+
+    # Data written before the fault that is missing afterwards is lost, not late.
+    final_probe = next((observation for observation in reversed(semantic_observations)
+                        if observation["phase"] == "recovery"), None)
+    data_loss = None
+    if final_probe and final_probe["correctness"] == "data_lost":
+        canary_id = baseline["owner_details"]["canary_visit_id"]
+        data_loss = {"missing_visit_ids": final_probe["missing_visit_ids"],
+                     "canary_visit_id": canary_id,
+                     "canary_lost": canary_id in final_probe["missing_visit_ids"]}
+        log("data-loss", f"{len(data_loss['missing_visit_ids'])} of owner {semantic_probe.OWNER_ID}'s "
+                         f"{len(expected_visit_ids)} visits did not survive the fault "
+                         f"(canary lost: {'yes' if data_loss['canary_lost'] else 'no'})", **data_loss)
 
     # 5. Summarise. Impact covers fault + recovery: requests that hung during
     #    the fault often only fail after it has been undone.
@@ -291,8 +311,8 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         "peak_p95_ms": max((s.p95_ms for s in fault_samples if s.p95_ms is not None), default=None),
         "recovered": recovered_at is not None,
         "recovery_s": round(recovered_at - t_revert, 1) if recovered_at else None,
-        "semantic_recovery": next((observation for observation in reversed(semantic_observations)
-                                   if observation["phase"] == "recovery"), None),
+        "semantic_recovery": final_probe,
+        "data_loss": data_loss,
         "fault_action_observations": fault_action_observations,
         "disturbance_action_observations": disturbance_action_observations,
         "impact_by_action": impact,

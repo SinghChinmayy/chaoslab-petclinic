@@ -20,13 +20,41 @@ class Response(io.BytesIO):
 
 
 class SemanticProbeTest(unittest.TestCase):
-    def test_http_200_missing_baseline_visit_is_degraded(self):
-        owner = {"pets": [{"visits": [{"id": 1}]}]}
+    def test_http_200_with_fallback_empty_visits_is_degraded(self):
+        owner = {"pets": [{"visits": []}]}
         with patch.object(semantic_probe, "urlopen", return_value=Response(json.dumps(owner).encode())):
             result = semantic_probe.check({1, 2})
         self.assertEqual(result["status"], 200)
         self.assertEqual(result["correctness"], "degraded")
+        self.assertEqual(result["missing_visit_ids"], [1, 2])
+
+    def test_http_200_missing_some_baseline_visits_is_data_loss(self):
+        # The visits fallback is all-or-nothing, so a partial list means the store lost data.
+        owner = {"pets": [{"visits": [{"id": 1}]}]}
+        with patch.object(semantic_probe, "urlopen", return_value=Response(json.dumps(owner).encode())):
+            result = semantic_probe.check({1, 2})
+        self.assertEqual(result["status"], 200)
+        self.assertEqual(result["correctness"], "data_lost")
         self.assertEqual(result["missing_visit_ids"], [2])
+        sample = Sample(elapsed=1, phase="fault", rps=5, error_rate=0, p95_ms=30,
+                        stalled=False, semantic_correctness="data_lost")
+        self.assertIn("data_lost", Guardrails().breach(sample, baseline_rps=5))
+        prediction = {"runtime": [{"component": "owner details", "outcome": "degraded"}]}
+        observation = dict(result, phase="fault")
+        self.assertEqual(semantic_probe.compare(prediction, [observation])["owner details"]["match"],
+                         "matched")
+
+    def test_canary_visit_returns_its_id(self):
+        created = Response(json.dumps({"id": 361, "petId": 7}).encode())
+        with patch.object(semantic_probe, "urlopen", return_value=created) as call:
+            self.assertEqual(semantic_probe.add_canary("run-1"), 361)
+        request = call.call_args.args[0]
+        self.assertEqual(request.get_method(), "POST")
+        self.assertIn("/owners/6/pets/7/visits", request.full_url)
+        self.assertIn(b"chaoslab canary run-1", request.data)
+        with patch.object(semantic_probe, "urlopen", side_effect=OSError("down")):
+            with self.assertRaises(ValueError):
+                semantic_probe.add_canary("run-2")
 
     def test_comparison_marks_unobserved_when_no_probe_sample(self):
         prediction = {"runtime": [{"component": "owner details", "outcome": "degraded"}]}
