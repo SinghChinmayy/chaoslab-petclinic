@@ -1,6 +1,7 @@
 services:
   config-server:
     image: springcommunity/spring-petclinic-config-server
+    pull_policy: never  # built from this repo's source: make build
     container_name: config-server
     deploy:
       resources:
@@ -16,6 +17,7 @@ services:
 
   discovery-server:
     image: springcommunity/spring-petclinic-discovery-server
+    pull_policy: never  # built from this repo's source: make build
     container_name: discovery-server
     deploy:
       resources:
@@ -34,6 +36,7 @@ services:
 
   customers-service:
     image: springcommunity/spring-petclinic-customers-service
+    pull_policy: never  # built from this repo's source: make build
     container_name: customers-service
     deploy:
       resources:
@@ -49,6 +52,7 @@ services:
 
   visits-service:
     image: springcommunity/spring-petclinic-visits-service
+    pull_policy: never  # built from this repo's source: make build
     container_name: visits-service
     deploy:
       resources:
@@ -64,6 +68,7 @@ services:
 
   vets-service:
     image: springcommunity/spring-petclinic-vets-service
+    pull_policy: never  # built from this repo's source: make build
     container_name: vets-service
     deploy:
       resources:
@@ -80,6 +85,7 @@ services:
 
   genai-service:
     image: springcommunity/spring-petclinic-genai-service
+    pull_policy: never  # built from this repo's source: make build
     container_name: genai-service
     profiles:
       - genai
@@ -102,6 +108,7 @@ services:
 
   api-gateway:
     image: springcommunity/spring-petclinic-api-gateway
+    pull_policy: never  # built from this repo's source: make build
     container_name: api-gateway
     deploy:
       resources:
@@ -115,9 +122,16 @@ services:
     ports:
      - 8080:8080
 
+  # Our own tooling (tracing, monitoring) restarts on failure; the app
+  # under test deliberately does not, so the chaos experiments can show it.
   tracing-server:
-    image: openzipkin/zipkin
+    image: openzipkin/zipkin:3.6.1
     container_name: tracing-server
+    restart: unless-stopped
+    environment:
+      # In-memory storage is unbounded by default and ran out of heap after ~30 min.
+      MEM_MAX_SPANS: "30000"
+      JAVA_OPTS: "-Xms128m -Xmx320m -XX:+ExitOnOutOfMemoryError"
     deploy:
       resources:
         limits:
@@ -127,6 +141,7 @@ services:
 
   admin-server:
     image: springcommunity/spring-petclinic-admin-server
+    pull_policy: never  # built from this repo's source: make build
     container_name: admin-server
     deploy:
       resources:
@@ -145,6 +160,7 @@ services:
   grafana-server:
     build: ./docker/grafana
     container_name: grafana-server
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -152,11 +168,19 @@ services:
     ports:
     - 3030:3000
 
+  # Optional: start with `--profile cadvisor`. Per-container metrics need Docker
+  # Desktop's classic image store (Settings > General > "Use containerd for
+  # pulling and storing images" OFF); with the default containerd store cAdvisor
+  # runs but cannot read any container. See docs/container-resource-monitoring.md.
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: cadvisor
+    profiles:
+      - cadvisor
+    restart: unless-stopped
     privileged: true
     command:
+      - --docker=unix:///tmp/docker.sock
       - --docker_only=true
       - --housekeeping_interval=5s
       - --disable_metrics=disk
@@ -164,8 +188,9 @@ services:
       - /dev/kmsg:/dev/kmsg
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Mounted outside /var/run: newer Docker engines refuse to mount the
+      # socket inside a read-only /var/run.
+      - /var/run/docker.sock:/tmp/docker.sock:ro
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
     deploy:
@@ -178,11 +203,15 @@ services:
   prometheus-server:
     build: ./docker/prometheus
     container_name: prometheus-server
+    restart: unless-stopped
     depends_on:
-      - cadvisor
+      cadvisor:
+        condition: service_started
+        required: false  # cAdvisor is optional
     deploy:
       resources:
         limits:
           memory: 256M
     ports:
     - 9091:9090
+
