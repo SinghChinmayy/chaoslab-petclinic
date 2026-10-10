@@ -11,6 +11,7 @@ This file records meaningful, user-facing changes to the project. Detailed imple
 ### Changed
 
 - Integrated the Spring PetClinic microservices source tree into the main repository for unified version control.
+- Made the GenAI service optional so PetClinic runs without OpenAI or Azure credentials.
 
 ### Fixed
 
