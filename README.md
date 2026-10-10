@@ -71,7 +71,7 @@ curl -fsS http://localhost:8080/api/gateway/owners/6 \
   | jq '{id, name: (.firstName + " " + .lastName), visits: [.pets[].visits[]?] | length}'
 ```
 
-The sample data gives owner `6` four visits. The load generator records new visits continuously, so expect at least four.
+The sample data gives owner `6` four visits. The load generator never writes to owner `6`, but each chaos experiment adds one canary visit, so expect at least four.
 
 ## Container metrics
 
@@ -123,7 +123,7 @@ python3 -m chaoslab stop                                      # kill switch (or:
 
 Each run measures a baseline, refuses to start unless the system is in a steady state, injects one fault, watches users' error rate, p95 latency, and throughput every second, reverts the fault, and measures recovery. Results go to `runs/<run>/result.json`, and every action is logged in `runs/<run>/events.jsonl`.
 
-Runs also check owner `6` against visit IDs seen in the healthy baseline. This catches an HTTP `200` with missing visit data. The correctness check contributes to the watchdog and recovery decision; predictions and `matched`/`contradicted`/`unobserved` comparisons are stored in `result.json`. Action comparisons count requests completed during the fault phase, so an action without fault traffic remains unobserved. A checkpoint is written as soon as a fault is reverted, and the recovery window can be bounded with `--recovery-timeout`.
+Runs also check owner `6` against visit IDs seen in the healthy baseline, after writing one canary visit that must survive the fault. This catches an HTTP `200` with missing visit data: no visits at all is the gateway fallback (`degraded`), while some visits missing after recovery is `data_lost`, reported as recovery with data loss. The correctness check contributes to the watchdog and recovery decision; predictions and `matched`/`contradicted`/`unobserved` comparisons are stored in `result.json` and printed in the summary. Action comparisons count requests from injection until users get normal service back, because requests that hang during a fault often fail after it is undone; an action with fewer than three such requests remains unobserved. A checkpoint is written as soon as a fault is reverted, and the recovery window can be bounded with `--recovery-timeout`.
 
 In one local Visits crash test, the Gateway returned `200` with missing visits. HTTP errors and latency later normalized, but two baseline visit IDs were still absent, so the experiment correctly reported that full recovery had not occurred. The active datastore configuration and durability need verification before treating a service restart as data recovery.
 
