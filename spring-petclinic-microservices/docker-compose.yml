@@ -152,9 +152,34 @@ services:
     ports:
     - 3030:3000
 
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    privileged: true
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=5s
+      - --disable_metrics=disk
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    ports:
+      - 127.0.0.1:8085:8080
+
   prometheus-server:
     build: ./docker/prometheus
     container_name: prometheus-server
+    depends_on:
+      - cadvisor
     deploy:
       resources:
         limits:

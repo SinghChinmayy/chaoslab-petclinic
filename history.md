@@ -7,6 +7,7 @@ This file records meaningful, user-facing changes to the project. Detailed imple
 ### Added
 
 - Established a project change history and commit-tracking convention.
+- Added cAdvisor-backed per-container CPU, memory, and network metrics to Prometheus, with setup and verification guidance.
 
 ### Changed
 

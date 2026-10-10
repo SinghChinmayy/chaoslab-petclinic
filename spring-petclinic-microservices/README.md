@@ -180,6 +180,8 @@ the host and port of your MySQL JDBC connection string.
 
 Grafana and Prometheus are included in the `docker-compose.yml` configuration, and the public facing applications
 have been instrumented with [MicroMeter](https://micrometer.io) to collect JVM and custom business metrics.
+cAdvisor also exports per-container CPU, memory, and network metrics. See the
+[container resource monitoring guide](docs/container-resource-monitoring.md) for setup, verification, and PromQL examples.
 
 A JMeter load testing script is available to stress the application and generate metrics: [petclinic_test_plan.jmx](spring-petclinic-api-gateway/src/test/jmeter/petclinic_test_plan.jmx)
 
