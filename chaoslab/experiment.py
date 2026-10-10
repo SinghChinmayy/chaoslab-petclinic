@@ -130,6 +130,12 @@ def run(fault: Fault, guard: Guardrails, duration_s: int,
         (run_dir / "result.json").write_text(json.dumps(result, indent=2))
         if prediction is not None:
             depmap.update_run_report(result)
+        if not result.get("recovery_pending") and result.get("outcome") != "refused":
+            try:
+                from . import dashboard
+                dashboard.build(run=result)
+            except (OSError, ValueError) as err:
+                log("dashboard", f"could not refresh saved dashboard: {err}")
         log("saved", f"{(run_dir / 'result.json').relative_to(ROOT)}")
         return result
 

@@ -1,6 +1,7 @@
 """Command line for the chaos controller.
 
     python3 -m chaoslab map                             # discover the dependency map
+    python3 -m chaoslab dashboard                       # build the read-only dashboard
     python3 -m chaoslab faults                          # the menu of failure types
     python3 -m chaoslab targets                         # what may be faulted
     python3 -m chaoslab run kill vets-service           # one experiment
@@ -14,7 +15,7 @@ import json
 import sys
 import time
 
-from . import blast_radius, depmap, experiment, safety
+from . import blast_radius, dashboard, depmap, experiment, safety
 from .docker import targets
 from .faults import FAULTS
 
@@ -72,8 +73,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="chaoslab",
                                      description="Safe, controlled failure injection for the local sandbox.")
     sub = parser.add_subparsers(dest="cmd", required=True,
-                                metavar="{map,impact,faults,targets,status,stop,run}")
+                                metavar="{map,dashboard,impact,faults,targets,status,stop,run}")
     sub.add_parser("map", help="discover the dependency map and write it to reports/")
+    dashboard_command = sub.add_parser("dashboard", help="build a standalone read-only dashboard")
+    dashboard_command.add_argument("--demo", action="store_true",
+                                   help="show the committed recorded example even if local runs exist")
     impact = sub.add_parser("impact", help="predict a failure's blast radius without injecting it")
     impact.add_argument("target")
     impact.add_argument("--failure", choices=sorted(FAULTS), default="kill")
@@ -115,6 +119,14 @@ def main(argv: list[str] | None = None) -> int:
                   f"{'; '.join(node['risk_hints'])}")
         for warning in m["warnings"]:
             print(f"  note: {warning}")
+    elif args.cmd == "dashboard":
+        try:
+            path = dashboard.build(use_demo=args.demo)
+        except (OSError, ValueError) as err:
+            print(f"Cannot build dashboard: {err}. Run `python3.11 -m chaoslab map` first.",
+                  file=sys.stderr)
+            return 2
+        print(f"wrote {path.relative_to(dashboard.ROOT)}")
     elif args.cmd == "impact":
         try:
             prediction = blast_radius.analyze(depmap.load(), args.target, args.failure,

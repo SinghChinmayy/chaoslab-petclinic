@@ -1,0 +1,1198 @@
+{
+  "id": "20261010-150502-kill-visits-service",
+  "fault": {
+    "id": "kill-visits-service-1791624902",
+    "kind": "kill",
+    "target": "visits-service",
+    "params": {}
+  },
+  "guardrails": {
+    "max_error_rate": 0.25,
+    "max_p95_ms": 2000,
+    "min_rps_ratio": 0.3,
+    "breach_seconds": 3,
+    "max_duration_s": 300,
+    "expiry_grace_s": 30
+  },
+  "baseline": {
+    "rps": 4.85,
+    "error_rate": 0.0,
+    "p95_ms": 54.0,
+    "action_error_rates": {
+      "add visit": 0.0,
+      "list owners": 0.0,
+      "list vets": 0.0,
+      "owner details": 0.0,
+      "pet types": 0.0
+    },
+    "owner_details": {
+      "status": 200,
+      "latency_ms": 17,
+      "correctness": "preserved",
+      "visit_count": 6
+    }
+  },
+  "outcome": "aborted",
+  "abort_reason": "watchdog: throughput 0.4 rps < 30% of normal 4.8 for 3s in a row",
+  "fault_active_s": 9.3,
+  "time_to_first_breach_s": 7.1,
+  "error_rate_fault_and_recovery": 0.020491803278688523,
+  "peak_error_rate": 0.3333333333333333,
+  "peak_p95_ms": 10000,
+  "recovered": false,
+  "recovery_s": null,
+  "impact_by_action": {
+    "add visit": {
+      "baseline_error_rate": 0.0,
+      "fault_error_rate": 0.3333333333333333,
+      "uses_target": true
+    },
+    "list owners": {
+      "baseline_error_rate": 0.0,
+      "fault_error_rate": 0.0,
+      "uses_target": false
+    },
+    "list vets": {
+      "baseline_error_rate": 0.0,
+      "fault_error_rate": 0.0,
+      "uses_target": false
+    },
+    "owner details": {
+      "baseline_error_rate": 0.0,
+      "fault_error_rate": 0.0,
+      "uses_target": true
+    },
+    "pet types": {
+      "baseline_error_rate": 0.0,
+      "fault_error_rate": 0.0,
+      "uses_target": false
+    }
+  },
+  "collateral_actions": [],
+  "timeline": [
+    {
+      "elapsed": 1.0,
+      "phase": "baseline",
+      "rps": 0.0,
+      "error_rate": null,
+      "p95_ms": 38,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": null,
+        "list vets": null,
+        "owner details": null,
+        "pet types": null
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 2.0,
+      "phase": "baseline",
+      "rps": 10.89,
+      "error_rate": 0.0,
+      "p95_ms": 54,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 3.0,
+      "phase": "baseline",
+      "rps": 5.45,
+      "error_rate": 0.0,
+      "p95_ms": 54,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 4.0,
+      "phase": "baseline",
+      "rps": 6.26,
+      "error_rate": 0.0,
+      "p95_ms": 54,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 5.1,
+      "phase": "baseline",
+      "rps": 4.69,
+      "error_rate": 0.0,
+      "p95_ms": 54,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 6.1,
+      "phase": "baseline",
+      "rps": 6.13,
+      "error_rate": 0.0,
+      "p95_ms": 60,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 7.1,
+      "phase": "baseline",
+      "rps": 3.96,
+      "error_rate": 0.0,
+      "p95_ms": 60,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 8.1,
+      "phase": "baseline",
+      "rps": 5.54,
+      "error_rate": 0.0,
+      "p95_ms": 54,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 9.1,
+      "phase": "baseline",
+      "rps": 3.96,
+      "error_rate": 0.0,
+      "p95_ms": 54,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 10.1,
+      "phase": "baseline",
+      "rps": 5.94,
+      "error_rate": 0.0,
+      "p95_ms": 54,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 11.4,
+      "phase": "fault",
+      "rps": 3.36,
+      "error_rate": 0.0,
+      "p95_ms": 54,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 12.4,
+      "phase": "fault",
+      "rps": 5.22,
+      "error_rate": 0.0,
+      "p95_ms": 41,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 13.5,
+      "phase": "fault",
+      "rps": 3.73,
+      "error_rate": 0.0,
+      "p95_ms": 41,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 14.5,
+      "phase": "fault",
+      "rps": 4.1,
+      "error_rate": 0.0,
+      "p95_ms": 24,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 15.5,
+      "phase": "fault",
+      "rps": 2.23,
+      "error_rate": 0.0,
+      "p95_ms": 24,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 16.5,
+      "phase": "fault",
+      "rps": 2.76,
+      "error_rate": 0.0,
+      "p95_ms": 50,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 17.5,
+      "phase": "fault",
+      "rps": 0.79,
+      "error_rate": 0.0,
+      "p95_ms": 50,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": null,
+        "pet types": null
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 18.5,
+      "phase": "fault",
+      "rps": 0.79,
+      "error_rate": 0.0,
+      "p95_ms": 72,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": null,
+        "pet types": null
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 19.5,
+      "phase": "fault",
+      "rps": 0.4,
+      "error_rate": 0.0,
+      "p95_ms": 72,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": null,
+        "pet types": null
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 20.7,
+      "phase": "recovery",
+      "rps": 1.53,
+      "error_rate": 0.25,
+      "p95_ms": 7200,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 1.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 21.7,
+      "phase": "recovery",
+      "rps": 1.15,
+      "error_rate": 0.3333333333333333,
+      "p95_ms": 7200,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 1.0,
+        "list owners": null,
+        "list vets": null,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": null
+    },
+    {
+      "elapsed": 22.7,
+      "phase": "recovery",
+      "rps": 3.65,
+      "error_rate": 0.2631578947368421,
+      "p95_ms": 10000,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 1.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 23.7,
+      "phase": "recovery",
+      "rps": 3.65,
+      "error_rate": 0.2631578947368421,
+      "p95_ms": 10000,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 1.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 24.7,
+      "phase": "recovery",
+      "rps": 4.61,
+      "error_rate": 0.20833333333333334,
+      "p95_ms": 10000,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 1.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 25.7,
+      "phase": "recovery",
+      "rps": 3.57,
+      "error_rate": 0.16666666666666666,
+      "p95_ms": 10000,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 1.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 26.7,
+      "phase": "recovery",
+      "rps": 5.56,
+      "error_rate": 0.10714285714285714,
+      "p95_ms": 10000,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 1.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 27.8,
+      "phase": "recovery",
+      "rps": 2.98,
+      "error_rate": 0.0,
+      "p95_ms": 10000,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 28.8,
+      "phase": "recovery",
+      "rps": 4.77,
+      "error_rate": 0.0,
+      "p95_ms": 10000,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 29.8,
+      "phase": "recovery",
+      "rps": 3.78,
+      "error_rate": 0.0,
+      "p95_ms": 10000,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 30.8,
+      "phase": "recovery",
+      "rps": 5.95,
+      "error_rate": 0.0,
+      "p95_ms": 81,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 31.8,
+      "phase": "recovery",
+      "rps": 3.96,
+      "error_rate": 0.0,
+      "p95_ms": 81,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 32.8,
+      "phase": "recovery",
+      "rps": 5.74,
+      "error_rate": 0.0,
+      "p95_ms": 97,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 33.8,
+      "phase": "recovery",
+      "rps": 3.96,
+      "error_rate": 0.0,
+      "p95_ms": 97,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 34.8,
+      "phase": "recovery",
+      "rps": 6.13,
+      "error_rate": 0.0,
+      "p95_ms": 97,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 35.8,
+      "phase": "recovery",
+      "rps": 3.95,
+      "error_rate": 0.0,
+      "p95_ms": 97,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 36.8,
+      "phase": "recovery",
+      "rps": 5.94,
+      "error_rate": 0.0,
+      "p95_ms": 97,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 37.9,
+      "phase": "recovery",
+      "rps": 4.16,
+      "error_rate": 0.0,
+      "p95_ms": 97,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 38.9,
+      "phase": "recovery",
+      "rps": 5.95,
+      "error_rate": 0.0,
+      "p95_ms": 46,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 39.9,
+      "phase": "recovery",
+      "rps": 3.77,
+      "error_rate": 0.0,
+      "p95_ms": 46,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 40.9,
+      "phase": "recovery",
+      "rps": 6.35,
+      "error_rate": 0.0,
+      "p95_ms": 31,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 41.9,
+      "phase": "recovery",
+      "rps": 4.36,
+      "error_rate": 0.0,
+      "p95_ms": 31,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 42.9,
+      "phase": "recovery",
+      "rps": 6.55,
+      "error_rate": 0.0,
+      "p95_ms": 31,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 43.9,
+      "phase": "recovery",
+      "rps": 4.76,
+      "error_rate": 0.0,
+      "p95_ms": 31,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 44.9,
+      "phase": "recovery",
+      "rps": 6.54,
+      "error_rate": 0.0,
+      "p95_ms": 40,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 45.9,
+      "phase": "recovery",
+      "rps": 3.96,
+      "error_rate": 0.0,
+      "p95_ms": 40,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 46.9,
+      "phase": "recovery",
+      "rps": 5.94,
+      "error_rate": 0.0,
+      "p95_ms": 40,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 47.9,
+      "phase": "recovery",
+      "rps": 3.76,
+      "error_rate": 0.0,
+      "p95_ms": 40,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 49.0,
+      "phase": "recovery",
+      "rps": 5.74,
+      "error_rate": 0.0,
+      "p95_ms": 40,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 50.0,
+      "phase": "recovery",
+      "rps": 3.96,
+      "error_rate": 0.0,
+      "p95_ms": 40,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 51.0,
+      "phase": "recovery",
+      "rps": 6.52,
+      "error_rate": 0.0,
+      "p95_ms": 40,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 52.0,
+      "phase": "recovery",
+      "rps": 4.55,
+      "error_rate": 0.0,
+      "p95_ms": 40,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 53.0,
+      "phase": "recovery",
+      "rps": 6.93,
+      "error_rate": 0.0,
+      "p95_ms": 32,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 54.0,
+      "phase": "recovery",
+      "rps": 4.95,
+      "error_rate": 0.0,
+      "p95_ms": 32,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 55.0,
+      "phase": "recovery",
+      "rps": 6.73,
+      "error_rate": 0.0,
+      "p95_ms": 32,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 56.0,
+      "phase": "recovery",
+      "rps": 4.16,
+      "error_rate": 0.0,
+      "p95_ms": 32,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 57.0,
+      "phase": "recovery",
+      "rps": 6.14,
+      "error_rate": 0.0,
+      "p95_ms": 43,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 58.0,
+      "phase": "recovery",
+      "rps": 3.76,
+      "error_rate": 0.0,
+      "p95_ms": 43,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": null
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 59.1,
+      "phase": "recovery",
+      "rps": 5.94,
+      "error_rate": 0.0,
+      "p95_ms": 43,
+      "stalled": false,
+      "action_errors": {
+        "add visit": 0.0,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 60.1,
+      "phase": "recovery",
+      "rps": 4.15,
+      "error_rate": 0.0,
+      "p95_ms": 43,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 61.1,
+      "phase": "recovery",
+      "rps": 6.52,
+      "error_rate": 0.0,
+      "p95_ms": 37,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 62.1,
+      "phase": "recovery",
+      "rps": 4.54,
+      "error_rate": 0.0,
+      "p95_ms": 37,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 63.1,
+      "phase": "recovery",
+      "rps": 6.71,
+      "error_rate": 0.0,
+      "p95_ms": 37,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 64.1,
+      "phase": "recovery",
+      "rps": 4.54,
+      "error_rate": 0.0,
+      "p95_ms": 37,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    },
+    {
+      "elapsed": 65.1,
+      "phase": "recovery",
+      "rps": 5.74,
+      "error_rate": 0.0,
+      "p95_ms": 24,
+      "stalled": false,
+      "action_errors": {
+        "add visit": null,
+        "list owners": 0.0,
+        "list vets": 0.0,
+        "owner details": 0.0,
+        "pet types": 0.0
+      },
+      "semantic_correctness": "degraded"
+    }
+  ],
+  "prediction": {
+    "schema_version": 1,
+    "evaluator_version": 1,
+    "snapshot_id": "ed04615da3443c0f",
+    "scenario": {
+      "target": "visits-service",
+      "failure": "kill",
+      "mode": "unavailable"
+    },
+    "runtime": [
+      {
+        "component": "add visit",
+        "service": "api-gateway",
+        "feature": "add visit",
+        "outcome": "unavailable",
+        "path": [
+          "api-gateway",
+          "visits-service"
+        ],
+        "behavior": "Gateway route returns its 503 fallback",
+        "rule": "add-visit:visits-service",
+        "evidence": [
+          {
+            "kind": "source",
+            "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml",
+            "detail": "Route or controller establishes this call and its unavailable behavior"
+          }
+        ],
+        "uncertainties": [],
+        "http_status": 503
+      },
+      {
+        "component": "owner details",
+        "service": "api-gateway",
+        "feature": "owner details",
+        "outcome": "degraded",
+        "path": [
+          "api-gateway",
+          "visits-service"
+        ],
+        "behavior": "Circuit breaker supplies an empty visits list",
+        "rule": "owner-details:visits-service",
+        "evidence": [
+          {
+            "kind": "source",
+            "locator": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/java/org/springframework/samples/petclinic/api/boundary/web/ApiGatewayController.java#emptyVisitsForPets",
+            "detail": "Route or controller establishes this call and its unavailable behavior"
+          }
+        ],
+        "uncertainties": [],
+        "http_status": 200,
+        "data": "visits omitted"
+      }
+    ],
+    "startup_restart": []
+  },
+  "prediction_comparison": {
+    "add visit": {
+      "predicted": "unavailable",
+      "observed": "unavailable",
+      "match": "matched"
+    },
+    "owner details": {
+      "predicted": "degraded",
+      "observed": "degraded",
+      "match": "matched"
+    }
+  },
+  "semantic_observations": [
+    {
+      "status": 200,
+      "latency_ms": 10012,
+      "correctness": "degraded",
+      "phase": "fault",
+      "elapsed": 21.5,
+      "missing_visit_count": 6
+    },
+    {
+      "status": 200,
+      "latency_ms": 9,
+      "correctness": "degraded",
+      "phase": "recovery",
+      "elapsed": 21.7,
+      "missing_visit_count": 6
+    },
+    {
+      "status": 200,
+      "latency_ms": 17,
+      "correctness": "degraded",
+      "phase": "recovery",
+      "elapsed": 64.1,
+      "missing_visit_count": 2
+    }
+  ],
+  "demo_provenance": {
+    "kind": "recorded_local_run",
+    "source_run_id": "20261010-150502-kill-visits-service",
+    "recorded_date": "2026-10-10",
+    "note": "Curated from the local result.json; visit IDs removed and representative semantic probes retained. Metrics and outcomes are unchanged."
+  }
+}

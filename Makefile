@@ -1,9 +1,10 @@
 APP_DIR := spring-petclinic-microservices
 COMPOSE := docker compose --file $(APP_DIR)/docker-compose.yml
+PYTHON ?= python3.11
 # Everything except the GenAI chatbot, which needs an OpenAI key.
 MODULES := !spring-petclinic-genai-service
 
-.PHONY: build up down status targets kill-switch
+.PHONY: build up down status targets kill-switch dashboard dashboard-demo
 
 build: ## Build the PetClinic images from this repo's source for this machine's CPU, plus the chaos helper image
 	cd $(APP_DIR) && ./mvnw -q clean install -P buildDocker -DskipTests \
@@ -21,7 +22,13 @@ status: ## Show container health
 	$(COMPOSE) ps --format 'table {{.Name}}\t{{.Status}}'
 
 targets: ## List the containers the chaos controller is allowed to fault
-	python3 -m chaoslab targets
+	$(PYTHON) -m chaoslab targets
 
 kill-switch: ## Revert every active fault and restore the sandbox
-	python3 -m chaoslab stop
+	$(PYTHON) -m chaoslab stop
+
+dashboard: ## Refresh the read-only dashboard from the newest finished local run
+	$(PYTHON) -m chaoslab dashboard
+
+dashboard-demo: ## Refresh the dashboard from the committed recorded Visits example
+	$(PYTHON) -m chaoslab dashboard --demo

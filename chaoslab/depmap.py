@@ -555,12 +555,16 @@ renderImpact();
 
 
 def save(m: dict) -> list[str]:
+    from . import dashboard
+
     REPORTS_DIR.mkdir(exist_ok=True)
     MAP_FILE.write_text(json.dumps(m, indent=2))
     (REPORTS_DIR / "dependency-map.md").write_text(markdown(m))
     (REPORTS_DIR / "dependency-map.html").write_text(html_page(m))
+    dashboard.build(snapshot=m)
     return [str(p.relative_to(REPORTS_DIR.parent)) for p in
-            (MAP_FILE, REPORTS_DIR / "dependency-map.md", REPORTS_DIR / "dependency-map.html")]
+            (MAP_FILE, REPORTS_DIR / "dependency-map.md", REPORTS_DIR / "dependency-map.html",
+             dashboard.DASHBOARD_FILE)]
 
 
 def update_run_report(run: dict) -> bool:
