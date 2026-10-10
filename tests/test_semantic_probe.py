@@ -96,6 +96,23 @@ class SemanticProbeTest(unittest.TestCase):
         self.assertEqual(result["pet types"]["observed"], "unobserved")
         self.assertEqual(result["pet types"]["match"], "unobserved")
 
+    def test_restart_data_loss_prediction_is_checked_after_recovery(self):
+        prediction = {"runtime": [], "startup_restart": [
+            {"component": "owner details", "outcome": "degraded", "probe": "owner details",
+             "path": ["visits-service"], "rule": "restart-data:visits-service"},
+            {"component": "list owners", "outcome": "degraded", "path": ["customers-service"],
+             "rule": "restart-data:customers-service"}]}
+
+        def verdict(correctness):
+            observations = [{"phase": "recovery", "correctness": correctness}] if correctness else []
+            return semantic_probe.compare(prediction, observations)
+
+        self.assertEqual(verdict("data_lost")["owner details after restart"]["match"], "matched")
+        self.assertEqual(verdict("preserved")["owner details after restart"]["match"], "contradicted")
+        self.assertEqual(verdict(None)["owner details after restart"]["match"], "unobserved")
+        # Nothing probes owners created at runtime, so that prediction is not judged at all.
+        self.assertNotIn("list owners after restart", verdict("data_lost"))
+
     def test_multiple_prediction_paths_remain_visible(self):
         prediction = {"runtime": [
             {"component": "owner details", "outcome": "degraded", "path": ["a"], "rule": "a"},

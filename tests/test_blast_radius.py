@@ -69,6 +69,31 @@ class BlastRadiusTest(unittest.TestCase):
         self.assertEqual(next(i for i in result["runtime"] if i["component"] == "owner details")["outcome"],
                          "uncertain")
 
+    def test_measured_slow_effect_carries_latency_and_basis(self):
+        s = snapshot()
+        visits = next(d for d in s["dependencies"] if d["id"] == "owner-visits")
+        visits["effects"]["slow"] = {"outcome": "preserved", "behavior": "visits arrive late",
+                                     "latency": "600 ms delay: p95 1.2 s", "basis": "measured"}
+        impact = next(i for i in analyze(s, "visits-service", "delay")["runtime"]
+                      if i["component"] == "owner details")
+        self.assertEqual(impact["outcome"], "preserved")
+        self.assertEqual(impact["latency"], "600 ms delay: p95 1.2 s")
+        self.assertEqual(impact["basis"], "measured")
+
+    def test_crash_restart_loses_in_memory_data_but_freeze_does_not(self):
+        s = snapshot()
+        s["restart_effects"] = {"visits-service": {
+            "features": ["owner details"], "outcome": "degraded", "probe": "owner details",
+            "behavior": "in-memory store restarts from seed data", "verification": "verified",
+            "evidence": [{"kind": "experiment", "locator": "fixture run"}]}}
+        restart = analyze(s, "visits-service", "kill")["startup_restart"]
+        self.assertEqual([(i["component"], i["outcome"], i["rule"]) for i in restart],
+                         [("owner details", "degraded", "restart-data:visits-service")])
+        self.assertEqual(restart[0]["probe"], "owner details")
+        self.assertEqual(restart[0]["uncertainties"], [])
+        self.assertEqual(analyze(s, "visits-service", "pause")["startup_restart"], [])
+        self.assertEqual(analyze(s, "customers-service", "kill")["startup_restart"], [])
+
     def test_phase_and_feature_selection(self):
         s = snapshot()
         s["features"] = {"owner details": {}}

@@ -1,11 +1,28 @@
 {
   "schema_version": 1,
   "reviewed_on": "2026-10-10",
+  "_effects": "Each step's `unavailable` is the crash rule; `effects` adds unresponsive (freeze), slow (delay, CPU, spike) and intermittent (packet loss). `basis` says whether a rule was measured or inferred from code; `observations` are the experiments behind measured rules.",
   "features": {
     "list owners": {
       "route": "/api/customer/owners",
       "steps": [{"provider": "customers-service", "purpose": "routing", "requirement": "required",
-        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503},
+        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503,
+          "latency": "Requests to a crashed container can hang until the Gateway's 10 s TimeLimiter before the fallback",
+          "basis": "measured"},
+        "effects": {
+          "unresponsive": {"outcome": "uncertain", "latency": "up to 10 s",
+            "behavior": "Requests wait up to the Gateway's 10 s TimeLimiter: a longer freeze returns the 503 fallback, a shorter one lets them finish late",
+            "basis": "inferred from the TimeLimiter configuration"},
+          "slow": {"outcome": "preserved", "behavior": "Responses succeed late while the slowdown stays under the 10 s TimeLimiter",
+            "latency": "CPU limited to 0.1 core: p95 89 ms warm and 460 ms right after a restart, no errors",
+            "basis": "measured for CPU starvation; network delay inferred",
+            "uncertainties": ["Slowdowns near 10 s trip the TimeLimiter and return the 503 fallback"]},
+          "intermittent": {"outcome": "preserved", "behavior": "TCP retransmission hides moderate packet loss at the cost of latency",
+            "latency": "a few hundred ms at 30% loss (measured on visits-service)", "basis": "inferred from a visits-service measurement",
+            "uncertainties": ["Loss approaching 100% behaves like an outage"]}},
+        "observations": [
+          {"locator": "chaoslab run kill customers-service (2026-10-10)", "detail": "Requests hung up to the Gateway's 10 s timeout before failing; list owners matched its unavailable prediction"},
+          {"locator": "chaoslab run cpu customers-service --cpus 0.1 (2026-10-10)", "detail": "p95 89 ms warm and 460 ms cold, no errors"}],
         "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml"}]
     },
     "owner details": {
@@ -13,12 +30,41 @@
       "oracle": "baseline_visit_ids_present",
       "steps": [
         {"provider": "customers-service", "purpose": "request_data", "requirement": "required",
-         "unavailable": {"outcome": "unavailable", "behavior": "Owner lookup has no local fallback"},
+         "unavailable": {"outcome": "unavailable", "behavior": "Owner lookup has no local fallback", "http_status": 500,
+           "latency": "No timeout or circuit breaker on this call: requests hang for seconds before failing (measured 7 to 19 s)",
+           "basis": "measured"},
+         "effects": {
+           "unresponsive": {"outcome": "uncertain", "latency": "as long as the freeze",
+             "behavior": "No timeout on this call: requests wait for as long as Customers is frozen, then finish or fail",
+             "basis": "inferred from code: no timeout or circuit breaker on the owner lookup"},
+           "slow": {"outcome": "preserved", "behavior": "The owner lookup succeeds late",
+             "latency": "CPU limited to 0.1 core: no errors", "basis": "measured for CPU starvation; network delay inferred"},
+           "intermittent": {"outcome": "preserved", "behavior": "TCP retransmission hides moderate packet loss at the cost of latency",
+             "latency": "a few hundred ms at 30% loss (measured on visits-service)", "basis": "inferred from a visits-service measurement",
+             "uncertainties": ["Loss approaching 100% behaves like an outage"]}},
+         "observations": [
+           {"locator": "chaoslab run kill customers-service (2026-10-10)", "detail": "Owner details returned HTTP 500 after 7.2 s; p95 reached 19 s in an earlier run"},
+           {"locator": "chaoslab run cpu customers-service --cpus 0.1 (2026-10-10)", "detail": "No errors; p95 up to 460 ms right after a restart"}],
          "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/java/org/springframework/samples/petclinic/api/boundary/web/ApiGatewayController.java#getOwnerDetails"},
         {"provider": "visits-service", "purpose": "request_data", "requirement": "required_for_complete_data",
          "unavailable": {"outcome": "degraded", "behavior": "Circuit breaker can supply an empty visits list", "http_status": 200, "data": "visits omitted",
+           "latency": "The fallback answers only after the 10 s TimeLimiter (measured: about 10 s before the first empty response)",
+           "basis": "measured",
            "assumptions": ["Customers owner lookup succeeds", "Visits failure reaches the Gateway circuit breaker fallback"],
            "uncertainties": ["Circuit state, timeout, and fault direction determine whether the fallback activates"]},
+         "effects": {
+           "unresponsive": {"outcome": "uncertain", "http_status": 200, "latency": "up to 10 s",
+             "behavior": "The circuit breaker returns empty visits once the 10 s TimeLimiter expires; a shorter freeze delays the page instead",
+             "basis": "inferred from code"},
+           "slow": {"outcome": "preserved", "behavior": "Visits arrive late; the page stays complete",
+             "latency": "600 ms network delay: p95 about 1.2 s, no errors", "basis": "measured",
+             "uncertainties": ["Delays near 10 s trip the TimeLimiter and return empty visits"]},
+           "intermittent": {"outcome": "preserved", "behavior": "TCP retransmission hides 30% packet loss; the page stays complete but slower",
+             "latency": "30% loss: p95 860 ms, no errors", "basis": "measured"}},
+         "observations": [
+           {"locator": "chaoslab run delay visits-service --delay-ms 600 (2026-10-10)", "detail": "p95 rose from 23 ms to 1.2 s with no errors"},
+           {"locator": "chaoslab run loss visits-service --loss-pct 30 (2026-10-10)", "detail": "p95 rose to 860 ms with no errors"},
+           {"locator": "chaoslab run kill visits-service (2026-10-10)", "detail": "Owner pages returned HTTP 200 with no visits about 10 s after the crash; owner details matched its degraded prediction"}],
          "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/java/org/springframework/samples/petclinic/api/boundary/web/ApiGatewayController.java#emptyVisitsForPets"}
       ]
     },
@@ -27,19 +73,62 @@
       "cache": {"profile": "production", "active_in_docker": false,
         "evidence": "spring-petclinic-microservices/spring-petclinic-vets-service/src/main/java/org/springframework/samples/petclinic/vets/system/CacheConfig.java"},
       "steps": [{"provider": "vets-service", "purpose": "routing", "requirement": "required",
-        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503},
+        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503,
+          "latency": "Requests to a crashed container can hang until the Gateway's 10 s TimeLimiter before the fallback",
+          "basis": "inferred from the customers-service measurement"},
+        "effects": {
+          "unresponsive": {"outcome": "uncertain", "latency": "up to 10 s",
+            "behavior": "Requests wait up to the Gateway's 10 s TimeLimiter; freezing vets-service cut total throughput by 87% as users waited",
+            "basis": "measured waiting; the outcome after 10 s is inferred"},
+          "slow": {"outcome": "preserved", "behavior": "Responses succeed late while the slowdown stays under the 10 s TimeLimiter",
+            "basis": "inferred from visits-service and customers-service measurements",
+            "uncertainties": ["Slowdowns near 10 s trip the TimeLimiter and return the 503 fallback"]},
+          "intermittent": {"outcome": "preserved", "behavior": "TCP retransmission hides moderate packet loss at the cost of latency",
+            "basis": "inferred from a visits-service measurement",
+            "uncertainties": ["Loss approaching 100% behaves like an outage"]}},
+        "observations": [
+          {"locator": "chaoslab run pause vets-service (2026-10-10)", "detail": "Throughput fell 87% with 0% errors while requests waited on the frozen service"}],
         "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml"}]
     },
     "pet types": {
       "route": "/api/customer/petTypes",
       "steps": [{"provider": "customers-service", "purpose": "routing", "requirement": "required",
-        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503},
+        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503,
+          "latency": "Requests to a crashed container can hang until the Gateway's 10 s TimeLimiter before the fallback",
+          "basis": "measured"},
+        "effects": {
+          "unresponsive": {"outcome": "uncertain", "latency": "up to 10 s",
+            "behavior": "Requests wait up to the Gateway's 10 s TimeLimiter: a longer freeze returns the 503 fallback, a shorter one lets them finish late",
+            "basis": "inferred from the TimeLimiter configuration"},
+          "slow": {"outcome": "preserved", "behavior": "Responses succeed late while the slowdown stays under the 10 s TimeLimiter",
+            "latency": "CPU limited to 0.1 core: no errors", "basis": "measured for CPU starvation; network delay inferred",
+            "uncertainties": ["Slowdowns near 10 s trip the TimeLimiter and return the 503 fallback"]},
+          "intermittent": {"outcome": "preserved", "behavior": "TCP retransmission hides moderate packet loss at the cost of latency",
+            "basis": "inferred from a visits-service measurement",
+            "uncertainties": ["Loss approaching 100% behaves like an outage"]}},
+        "observations": [
+          {"locator": "chaoslab run kill customers-service (2026-10-10)", "detail": "Pet types matched its unavailable prediction (3 of 4 requests failed)"}],
         "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml"}]
     },
     "add visit": {
       "route": "/api/visit/owners/{ownerId}/pets/{petId}/visits",
       "steps": [{"provider": "visits-service", "purpose": "routing", "requirement": "required",
-        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503},
+        "unavailable": {"outcome": "unavailable", "behavior": "Gateway route returns its 503 fallback", "http_status": 503,
+          "latency": "Requests to a crashed container can hang until the Gateway's 10 s TimeLimiter before the fallback",
+          "basis": "measured"},
+        "effects": {
+          "unresponsive": {"outcome": "uncertain", "latency": "up to 10 s",
+            "behavior": "Requests wait up to the Gateway's 10 s TimeLimiter: a longer freeze returns the 503 fallback, a shorter one lets them finish late",
+            "basis": "inferred from the TimeLimiter configuration"},
+          "slow": {"outcome": "preserved", "behavior": "Visits are saved late",
+            "latency": "600 ms network delay: no errors", "basis": "measured",
+            "uncertainties": ["Delays near 10 s trip the TimeLimiter and return the 503 fallback"]},
+          "intermittent": {"outcome": "preserved", "behavior": "TCP retransmission hides 30% packet loss at the cost of latency",
+            "latency": "30% loss: no errors", "basis": "measured"}},
+        "observations": [
+          {"locator": "chaoslab run delay visits-service --delay-ms 600 (2026-10-10)", "detail": "Add visit had no errors"},
+          {"locator": "chaoslab run loss visits-service --loss-pct 30 (2026-10-10)", "detail": "Add visit had no errors"},
+          {"locator": "chaoslab run kill visits-service (2026-10-10)", "detail": "Add visit matched its unavailable prediction (6 of 9 requests failed)"}],
         "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml"}]
     },
     "genai chat": {
@@ -48,6 +137,22 @@
         "unavailable": {"outcome": "unavailable", "behavior": "Optional chatbot route returns its 503 fallback", "http_status": 503},
         "evidence": "spring-petclinic-microservices/spring-petclinic-api-gateway/src/main/resources/application.yml"}]
     }
+  },
+  "_restart_effects": "What a crashed service loses when it starts again. `probe` names the correctness check that can observe it.",
+  "restart_effects": {
+    "visits-service": {
+      "features": ["owner details"], "outcome": "degraded", "probe": "owner details",
+      "behavior": "The in-memory HSQLDB restarts from seed data, so visits written since the last start are lost",
+      "data": "visits written at runtime are gone", "basis": "measured", "verification": "verified",
+      "evidence": {"kind": "experiment", "locator": "chaoslab run kill visits-service (2026-10-10)",
+        "detail": "379 of 383 owner 6 visits, including the canary, were missing after the restart; the 4 seeded visits remained"}},
+    "customers-service": {
+      "features": ["list owners", "owner details"], "outcome": "degraded",
+      "behavior": "Owners and pets written since the last start are lost when the in-memory HSQLDB reloads its seed data",
+      "data": "owners and pets created at runtime are gone",
+      "basis": "inferred: the same embedded HSQLDB setup as visits-service; the load generator creates no owners", "verification": "inferred",
+      "evidence": {"kind": "source", "locator": "spring-petclinic-microservices/spring-petclinic-customers-service/src/main/resources/db/hsqldb/data.sql",
+        "detail": "Seed data is loaded into the embedded database at every start"}}
   },
   "config_clients": ["discovery-server", "customers-service", "visits-service", "vets-service", "api-gateway", "admin-server", "genai-service"],
   "discovery_clients": ["customers-service", "visits-service", "vets-service", "api-gateway", "admin-server", "genai-service"]

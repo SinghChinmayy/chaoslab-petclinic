@@ -120,4 +120,20 @@ def compare(prediction: dict | None, observations: list[dict],
                              "fault_probes": len(fault_probes) if name == "owner details" else 0,
                              "match": ("unobserved" if observed == "unobserved" or expected == "uncertain"
                                        else "matched" if expected == observed else "contradicted")}
+    # Restart predictions (data an in-memory store loses) are checked by the last
+    # correctness probe once users have service again.
+    recovery_probes = [item for item in observations if item.get("phase") == "recovery"]
+    final = recovery_probes[-1]["correctness"] if recovery_probes else None
+    for impact in prediction.get("startup_restart", []):
+        if impact.get("probe") != "owner details":
+            continue
+        observed = {"data_lost": "degraded", "preserved": "preserved"}.get(final, "unobserved")
+        comparisons[f"{impact['component']} after restart"] = {
+            "predicted": impact["outcome"], "observed": observed, "observed_statuses": [],
+            "peak_observed_latency_ms": None, "recovery_correctness": final,
+            "alternatives": [{"outcome": impact["outcome"], "path": impact.get("path", []),
+                              "rule": impact.get("rule")}],
+            "fault_requests": 0, "fault_failures": 0, "fault_probes": len(recovery_probes),
+            "match": ("unobserved" if observed == "unobserved"
+                      else "matched" if impact["outcome"] == observed else "contradicted")}
     return comparisons

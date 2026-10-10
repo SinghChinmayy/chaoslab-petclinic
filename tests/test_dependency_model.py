@@ -129,6 +129,25 @@ class DependencyModelTest(unittest.TestCase):
         self.assertEqual(shares["customers-service"], 0.6)
         self.assertEqual(shares["vets-service"], 0.4)
 
+    def test_reviewed_manifest_carries_measured_effects_and_restart_data_loss(self):
+        names = ("api-gateway", "customers-service", "visits-service", "vets-service",
+                 "config-server", "discovery-server", "admin-server", "genai-service")
+        base = {"generated_at": "now", "entry_point": "api-gateway",
+                "nodes": [{"id": n, "kind": "container"} for n in names],
+                "edges": [], "user_actions": {}, "warnings": []}
+        snapshot = enrich(base, active_services=set(names), source_state={})
+        visits = next(d for d in snapshot["dependencies"] if d["id"] == "owner-details:visits-service")
+        self.assertEqual(visits["effects"]["slow"]["basis"], "measured")
+        self.assertTrue(any(e["kind"] == "experiment" for e in visits["evidence"]))
+        restart = snapshot["restart_effects"]["visits-service"]
+        self.assertEqual(restart["outcome"], "degraded")
+        self.assertEqual(restart["evidence"][0]["verification"], "verified")
+        self.assertEqual(snapshot["restart_effects"]["customers-service"]["evidence"][0]["verification"],
+                         "inferred")
+        snapshot["restart_effects"]["visits-service"]["features"] = ["no such feature"]
+        with self.assertRaises(ValueError):
+            validate(snapshot)
+
     def test_invalid_edge_without_evidence_is_rejected(self):
         names = ("api-gateway", "customers-service", "visits-service", "vets-service",
                  "config-server", "discovery-server", "admin-server", "genai-service")

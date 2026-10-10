@@ -47,7 +47,9 @@ def print_summary(r: dict) -> None:
     semantic = r.get("semantic_recovery")
     if r.get("data_loss"):
         loss = r["data_loss"]
-        print(f"Data loss          {len(loss['missing_visit_ids'])} visits written before the fault are gone "
+        lost = len(loss["missing_visit_ids"])
+        print(f"Data loss          {lost} visit{'' if lost == 1 else 's'} written before the fault "
+              f"{'is' if lost == 1 else 'are'} gone "
               f"(canary visit {loss['canary_visit_id']} lost: {'yes' if loss['canary_lost'] else 'no'})")
     elif semantic and semantic["correctness"] != "preserved":
         print(f"Response data      {semantic['correctness']}; missing baseline visit IDs: "
@@ -128,6 +130,11 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"\n{phase.replace('_', ' ').title()}:")
                 for item in prediction[phase]:
                     print(f"  {item['component']}: {item['outcome']} — {item['behavior']}")
+                    details = [f"{label}: {item[key]}" for key, label in
+                               (("http_status", "HTTP"), ("data", "data"), ("latency", "latency"),
+                                ("basis", "basis")) if key in item]
+                    if details:
+                        print(f"    {'; '.join(details)}")
                     print(f"    path: {' -> '.join(item['path'])}; evidence: "
                           f"{', '.join(e['locator'] for e in item['evidence'])}")
                     for uncertainty in item["uncertainties"]:

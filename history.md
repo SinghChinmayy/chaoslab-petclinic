@@ -6,6 +6,7 @@ This file records meaningful, user-facing changes to the project. Detailed imple
 
 ### Added
 
+- Added evidence-backed impact rules for freezes, slow and lossy networks and the Gateway's 10 s timeout, plus restart data loss for services with in-memory databases, each labelled measured or inferred and checked against experiment results.
 - Added a shared, evidence-backed dependency snapshot and qualitative impact view for the CLI and report, with runtime and startup predictions, scenario filters, and fallback assumptions.
 - Added owner-details correctness monitoring and prediction-versus-observation results to guarded experiments and the report, including recovery checks and accurate handling of unsampled actions.
 - Added explicit uncertainty for owner-details datastore paths until the active datasource is verified.

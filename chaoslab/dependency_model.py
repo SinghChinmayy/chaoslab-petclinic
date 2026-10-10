@@ -108,9 +108,12 @@ def enrich(base: dict, active_services: set[str], source_state: dict,
                 "id": dep_id, "consumer": gateway, "provider": provider, "feature": feature_name,
                 "purpose": step["purpose"], "interaction": "synchronous_http", "phases": ["runtime"],
                 "requirement": step["requirement"], "verification": "verified",
-                "effects": {"unavailable": step["unavailable"]},
+                # Crash behavior plus freeze, slow and lossy behavior where reviewed.
+                "effects": {"unavailable": step["unavailable"], **step.get("effects", {})},
                 "evidence": [_evidence("source", step["evidence"],
-                                       "Route or controller establishes this call and its unavailable behavior")],
+                                       "Route or controller establishes this call and its unavailable behavior")]
+                            + [_evidence("experiment", item["locator"], item["detail"])
+                               for item in step.get("observations", [])],
             })
             steps.append(dep_id)
         features[feature_name] = {"route": feature["route"], "entry_point": gateway,
@@ -203,6 +206,14 @@ def enrich(base: dict, active_services: set[str], source_state: dict,
 
     snapshot["dependencies"] = dependencies
     snapshot["features"] = features
+    # What a crashed service loses when it starts again (e.g. an in-memory database).
+    snapshot["restart_effects"] = {
+        service: {**{key: value for key, value in effect.items() if key != "evidence"},
+                  "evidence": [_evidence(effect["evidence"]["kind"], effect["evidence"]["locator"],
+                                         effect["evidence"]["detail"],
+                                         verification=effect.get("verification"))]}
+        for service, effect in manifest.get("restart_effects", {}).items() if service in nodes
+    }
     for name, feature in features.items():
         if name in snapshot["user_actions"]:
             action = snapshot["user_actions"][name]
@@ -259,6 +270,11 @@ def validate(snapshot: dict) -> None:
     for feature in snapshot["features"].values():
         if not set(feature["steps"]) <= ids:
             raise ValueError("feature references an unknown dependency")
+    for service, effect in snapshot.get("restart_effects", {}).items():
+        if service not in nodes or effect["outcome"] not in OUTCOMES or not effect.get("evidence"):
+            raise ValueError(f"invalid restart effect: {service}")
+        if not set(effect["features"]) <= set(snapshot["features"]):
+            raise ValueError(f"restart effect names an unknown feature: {service}")
 
 
 def refresh_freshness(snapshot: dict, now: datetime | None = None) -> dict:

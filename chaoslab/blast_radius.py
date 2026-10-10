@@ -2,7 +2,7 @@
 
 from collections import defaultdict, deque
 
-EVALUATOR_VERSION = 1
+EVALUATOR_VERSION = 2   # 2: per-mode effects, latency and basis, restart data loss
 FAILURE_MODES = {
     "kill": "unavailable",
     "pause": "unresponsive",
@@ -84,11 +84,26 @@ def analyze(snapshot: dict, target: str, failure: str, phase: str | None = None,
                               "rule": dep["id"], "evidence": evidence,
                               "assumptions": effect.get("assumptions", []),
                               "uncertainties": uncertainty + effect.get("uncertainties", [])}
-                    for field in ("http_status", "data", "latency"):
+                    for field in ("http_status", "data", "latency", "basis"):
                         if field in effect:
                             impact[field] = effect[field]
                     result[result_key].append(impact)
                 if effect.get("propagate_service") and effect["outcome"] == "unavailable":
                     queue.append((consumer, impact_path, evidence, uncertainty))
+        # A crash is undone by restarting the target, which loses what it kept in memory.
+        restart = snapshot.get("restart_effects", {}).get(target)
+        if result_key == "startup_restart" and failure == "kill" and restart:
+            for name in restart["features"]:
+                if feature is None or name == feature:
+                    impact = {"component": name, "service": target, "feature": name,
+                              "outcome": restart["outcome"], "path": [target],
+                              "behavior": restart["behavior"], "rule": f"restart-data:{target}",
+                              "evidence": restart["evidence"], "assumptions": [],
+                              "uncertainties": ([] if restart.get("verification") == "verified"
+                                                else [f"restart-data:{target}: {restart.get('basis', 'inferred')}"])}
+                    for field in ("data", "basis", "probe"):
+                        if field in restart:
+                            impact[field] = restart[field]
+                    result[result_key].append(impact)
         result[result_key].sort(key=lambda i: (i["component"], i["path"]))
     return result
