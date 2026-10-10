@@ -2,7 +2,7 @@
 
 The committed [dashboard](../reports/dashboard.html) and [recorded run](../demo/visits-failure.json) work without Docker. They describe a local experiment recorded on **2026-10-10**, before canary visits and explicit data-loss classification were added. The displayed dependency map was generated later, so its snapshot ID differs from the one captured with the run; the dashboard explicitly labels this.
 
-The [published dependency map](https://singhchinmayy.github.io/hackathon/) is a saved **2026-10-11** snapshot. Start there to show the Gateway → Customers → Visits path, the owner-details route, and the Visits crash prediction. Its evidence panel labels missing recent traces and observations that have since become stale. Then move to the dashboard to show what the earlier experiment actually measured.
+The [published dependency map](https://singhchinmayy.github.io/chaoslab-petclinic/) is a saved **2026-10-11** snapshot. Start there to show the Gateway → Customers → Visits path, the owner-details route, and the Visits crash prediction. Its evidence panel labels missing recent traces and observations that have since become stale. Then move to the dashboard to show what the earlier experiment actually measured.
 
 ## Walkthrough
 

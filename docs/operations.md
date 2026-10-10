@@ -104,7 +104,7 @@ python3.11 -m chaoslab impact config-server --failure kill --json   # machine-re
 python3.11 -m chaoslab impact visits-service --phase runtime --feature 'owner details'
 ```
 
-The impact command is read-only. It reports running-service effects separately from startup/restart effects, with dependency paths, fallback assumptions, and uncertainty. Open `reports/dependency-map.html` to inspect the same semantics and switch target, failure, and phase. The identical `docs/index.html` is the [published map](https://singhchinmayy.github.io/hackathon/) after committing and pushing a refresh. After a guarded run, the report also shows its prediction-versus-observation comparison when the run used the current snapshot. The [implementation plan](dependency-analysis-plan.md) documents the V1 model, evidence rules, and limits.
+The impact command is read-only. It reports running-service effects separately from startup/restart effects, with dependency paths, fallback assumptions, and uncertainty. Open `reports/dependency-map.html` to inspect the same semantics and switch target, failure, and phase. The identical `docs/index.html` is the [published map](https://singhchinmayy.github.io/chaoslab-petclinic/) after committing and pushing a refresh. After a guarded run, the report also shows its prediction-versus-observation comparison when the run used the current snapshot. The [implementation plan](dependency-analysis-plan.md) documents the V1 model, evidence rules, and limits.
 
 ## Read-only dashboard
 

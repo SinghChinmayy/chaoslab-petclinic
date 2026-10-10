@@ -20,7 +20,7 @@ ChaosLab is a local chaos engineering prototype for the [Spring PetClinic micros
 
 ## Explore the dependency map
 
-[Open the published dependency map](https://singhchinmayy.github.io/hackathon/) or [view the HTML in this repository](docs/index.html). This is a **saved snapshot generated on 2026-10-11**, not a live health page. Running `python3.11 -m chaoslab map` refreshes both `docs/index.html` and `reports/dependency-map.html` from the same JSON report. The map used Docker Compose, Docker, Eureka, Prometheus, and Locust; Zipkin had no recent traces, so route gaps are labelled as unknown or backed by source code.
+[Open the published dependency map](https://singhchinmayy.github.io/chaoslab-petclinic/) or [view the HTML in this repository](docs/index.html). This is a **saved snapshot generated on 2026-10-11**, not a live health page. Running `python3.11 -m chaoslab map` refreshes both `docs/index.html` and `reports/dependency-map.html` from the same JSON report. The map used Docker Compose, Docker, Eureka, Prometheus, and Locust; Zipkin had no recent traces, so route gaps are labelled as unknown or backed by source code.
 
 ![Service topology showing Gateway, Customers, Visits, Vets, platform services, and their dependency arrows](docs/images/dependency-topology.png)
 

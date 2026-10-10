@@ -33,6 +33,7 @@ This file records meaningful, user-facing changes to the project. Detailed imple
 
 ### Fixed
 
+- Corrected the published dependency-map links after the repository moved to its canonical GitHub name.
 - The owner-details correctness check now uses owner 6 as a fixture the load generator no longer writes to, writes a canary visit before each fault, and reports a service that recovers with lost data as recovered with data loss instead of never recovering.
 - Prediction checks now count requests that hang during a fault and fail after it is undone, and leave actions with fewer than three finished requests unobserved instead of contradicted; experiment summaries print the comparison.
 - The dependency map report no longer fails when traces show an endpoint outside Compose, and each service's database calls now map to its own embedded HSQLDB, verified by JDBC trace tags, instead of one shared "public" endpoint.
