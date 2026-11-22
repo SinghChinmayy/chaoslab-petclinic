@@ -25,6 +25,8 @@ This file records meaningful, user-facing changes to the project. Detailed imple
 
 ### Changed
 
+- Clarified the README audience, correctness problem, saved demo and case-study links.
+
 - The README describes the owner 6 fixture, the canary visit, data-loss reporting and the comparison window.
 - Integrated the Spring PetClinic microservices source tree into the main repository for unified version control.
 - Made the GenAI service optional so PetClinic runs without OpenAI or Azure credentials.

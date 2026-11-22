@@ -2,6 +2,12 @@
 
 ChaosLab is a local chaos engineering prototype for the [Spring PetClinic microservices](https://github.com/spring-petclinic/spring-petclinic-microservices) Docker Compose stack. It maps service dependencies, predicts failure impact, runs guarded experiments, and checks what users actually receive. The dashboard below is a **read-only recording**, so it can be explored without starting Docker.
 
+For developers investigating microservice failures, HTTP success alone can hide missing user data. ChaosLab connects dependency evidence, bounded fault injection and response-correctness checks in a local sandbox.
+
+[Explore the saved dependency map](https://singhchinmayy.github.io/chaoslab-petclinic/) · [Case study](https://chinmaysingh.me/projects/chaoslab-petclinic) · [Run locally](#reproduce-locally)
+
+The hosted demo is a saved, read-only map; it does not run experiments or report live service health.
+
 ![ChaosLab dashboard overview showing the recorded Visits failure, automatic abort, and missing visit data](docs/images/dashboard-overview.png)
 
 **Key finding:** In a recorded Visits-service crash, `GET /api/gateway/owners/6` returned HTTP `200` while all six baseline visits were missing from one correctness probe. The watchdog reverted the fault after **9.3 seconds**. The last recovery probe still lacked **two** baseline visits, so the run did **not** claim full recovery. [Open the dashboard](reports/dashboard.html).
